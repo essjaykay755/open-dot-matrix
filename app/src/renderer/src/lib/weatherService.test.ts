@@ -54,6 +54,29 @@ describe('WeatherService schedule', () => {
     service.stop()
   })
 
+  it('re-sends with the new style when it changes during an upload', async () => {
+    let finishUpload: () => void = () => undefined
+    const sent: number[] = []
+    const send = vi.fn(
+      (gif: Uint8Array) =>
+        new Promise<void>((resolve) => {
+          sent.push(gif.length)
+          finishUpload = resolve
+        })
+    )
+    const service = new WeatherService({ ensureConnected: async () => true, send, targetName: () => 'IDM-TEST' })
+    service.start()
+    service.update({ location: KOLKATA, style: 'scene', autoUpdate: true })
+    await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(1))
+
+    service.update({ style: 'dots' })
+    finishUpload()
+    await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(2))
+    finishUpload()
+    expect(sent[1]).not.toBe(sent[0])
+    service.stop()
+  })
+
   it('retries soon when no panel can be reached', async () => {
     let reachable = false
     const send = vi.fn(async () => undefined)

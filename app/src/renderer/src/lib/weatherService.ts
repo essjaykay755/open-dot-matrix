@@ -1,5 +1,5 @@
 import type { PreviewContent } from './preview'
-import { renderWeatherArt } from './weatherArt'
+import { renderWeatherArt, type WeatherStyle } from './weatherArt'
 import {
   CONDITION_LABELS,
   fetchWeather,
@@ -20,6 +20,7 @@ export interface WeatherSettings {
   intervalMinutes: number
   autoUpdate: boolean
   autoReconnect: boolean
+  style: WeatherStyle
   showHighLow: boolean
   showCity: boolean
 }
@@ -56,6 +57,7 @@ const DEFAULT_SETTINGS: WeatherSettings = {
   intervalMinutes: 15,
   autoUpdate: false,
   autoReconnect: true,
+  style: 'scene',
   showHighLow: true,
   showCity: true
 }
@@ -77,6 +79,7 @@ export class WeatherService {
   private listeners = new Map<keyof WeatherEventMap, Set<Listener<unknown>>>()
   private ticker = 0
   private running: Promise<void> | null = null
+  private queued: { send: boolean } | null = null
   private abort: AbortController | null = null
 
   constructor(private readonly delivery: WeatherDelivery) {}
@@ -127,13 +130,15 @@ export class WeatherService {
     const contentChanged =
       previous.location !== next.location ||
       previous.unit !== next.unit ||
+      previous.style !== next.style ||
       previous.showCity !== next.showCity ||
       previous.showHighLow !== next.showHighLow
 
     if (!previous.autoUpdate || contentChanged) {
       // Turning updates on, or changing what is shown, pushes right away.
       this.setStatus({ nextUpdate: Date.now() })
-      this.checkSchedule()
+      if (this.running) void this.run(true)
+      else this.checkSchedule()
     } else if (previous.intervalMinutes !== next.intervalMinutes) {
       const base = this.statusValue.lastSent ?? Date.now()
       this.setStatus({ nextUpdate: base + next.intervalMinutes * 60_000 })
@@ -164,9 +169,16 @@ export class WeatherService {
   }
 
   private run(send: boolean): Promise<void> {
-    if (this.running) return this.running
+    if (this.running) {
+      // Settings changed (or Send was pressed) mid-run: go again with the latest settings after it.
+      this.queued = { send: (this.queued?.send ?? false) || send }
+      return this.running
+    }
     this.running = this.execute(send).finally(() => {
       this.running = null
+      const queued = this.queued
+      this.queued = null
+      if (queued) void this.run(queued.send)
     })
     return this.running
   }
@@ -249,3 +261,8 @@ function saveSettings(settings: WeatherSettings): void {
     // Settings still apply for this session.
   }
 }
+
+// The app keeps one WeatherService for its whole life, and React Fast Refresh would keep that old
+// instance (and the drawing code it imported) running after an edit in development. Reload instead
+// so scheduled sends always use the current code.
+if (import.meta.hot) import.meta.hot.accept(() => window.location.reload())

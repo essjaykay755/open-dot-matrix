@@ -62,7 +62,35 @@ const LARGE: Record<string, string[]> = {
   '8': ['.###.', '#...#', '#...#', '.###.', '#...#', '#...#', '.###.'],
   '9': ['.###.', '#...#', '#...#', '.####', '....#', '...#.', '.##..'],
   '-': ['.....', '.....', '.....', '####.', '.....', '.....', '.....'],
-  '°': ['.##.', '#..#', '#..#', '.##.', '....', '....', '....']
+  '°': ['.##.', '#..#', '#..#', '.##.', '....', '....', '....'],
+  A: ['.###.', '#...#', '#...#', '#####', '#...#', '#...#', '#...#'],
+  B: ['####.', '#...#', '#...#', '####.', '#...#', '#...#', '####.'],
+  C: ['.###.', '#...#', '#....', '#....', '#....', '#...#', '.###.'],
+  D: ['####.', '#...#', '#...#', '#...#', '#...#', '#...#', '####.'],
+  E: ['#####', '#....', '#....', '####.', '#....', '#....', '#####'],
+  F: ['#####', '#....', '#....', '####.', '#....', '#....', '#....'],
+  G: ['.###.', '#...#', '#....', '#.###', '#...#', '#...#', '.####'],
+  H: ['#...#', '#...#', '#...#', '#####', '#...#', '#...#', '#...#'],
+  I: ['.###.', '..#..', '..#..', '..#..', '..#..', '..#..', '.###.'],
+  J: ['..###', '...#.', '...#.', '...#.', '...#.', '#..#.', '.##..'],
+  K: ['#...#', '#..#.', '#.#..', '##...', '#.#..', '#..#.', '#...#'],
+  L: ['#....', '#....', '#....', '#....', '#....', '#....', '#####'],
+  M: ['#...#', '##.##', '#.#.#', '#.#.#', '#...#', '#...#', '#...#'],
+  N: ['#...#', '#...#', '##..#', '#.#.#', '#..##', '#...#', '#...#'],
+  O: ['.###.', '#...#', '#...#', '#...#', '#...#', '#...#', '.###.'],
+  P: ['####.', '#...#', '#...#', '####.', '#....', '#....', '#....'],
+  Q: ['.###.', '#...#', '#...#', '#...#', '#.#.#', '#..#.', '.##.#'],
+  R: ['####.', '#...#', '#...#', '####.', '#.#..', '#..#.', '#...#'],
+  S: ['.####', '#....', '#....', '.###.', '....#', '....#', '####.'],
+  T: ['#####', '..#..', '..#..', '..#..', '..#..', '..#..', '..#..'],
+  U: ['#...#', '#...#', '#...#', '#...#', '#...#', '#...#', '.###.'],
+  V: ['#...#', '#...#', '#...#', '#...#', '#...#', '.#.#.', '..#..'],
+  W: ['#...#', '#...#', '#...#', '#.#.#', '#.#.#', '#.#.#', '.#.#.'],
+  X: ['#...#', '#...#', '.#.#.', '..#..', '.#.#.', '#...#', '#...#'],
+  Y: ['#...#', '#...#', '.#.#.', '..#..', '..#..', '..#..', '..#..'],
+  Z: ['#####', '....#', '...#.', '..#..', '.#...', '#....', '#####'],
+  '.': ['.', '.', '.', '.', '.', '.', '#'],
+  ' ': ['..', '..', '..', '..', '..', '..', '..']
 }
 
 export type FontSize = 'small' | 'large'
@@ -71,6 +99,10 @@ export interface TextOptions {
   size?: FontSize
   scale?: number
   spacing?: number
+  /** Light one pixel per scaled cell, giving a dot-matrix look. */
+  dotted?: boolean
+  /** Width and height of the square target buffer. */
+  canvasSize?: number
 }
 
 function glyphFor(character: string, size: FontSize): string[] | null {
@@ -104,7 +136,7 @@ export function textHeight(options: TextOptions = {}): number {
   return (options.size === 'large' ? 7 : 5) * (options.scale ?? 1)
 }
 
-/** Draws text into a 64×64 RGBA buffer. Returns the x position after the last glyph. */
+/** Draws text into a square RGBA buffer (64×64 by default). Returns the x position after the last glyph. */
 export function drawText(
   data: Uint8ClampedArray,
   text: string,
@@ -116,6 +148,8 @@ export function drawText(
   const size = options.size ?? 'small'
   const scale = options.scale ?? 1
   const spacing = options.spacing ?? 1
+  const canvas = options.canvasSize ?? 64
+  const cell = options.dotted ? 1 : scale
   let cursor = x
 
   for (const character of text) {
@@ -124,13 +158,13 @@ export function drawText(
     for (let row = 0; row < glyph.length; row += 1) {
       for (let column = 0; column < glyph[row].length; column += 1) {
         if (glyph[row][column] !== '#') continue
-        for (let sy = 0; sy < scale; sy += 1) {
-          for (let sx = 0; sx < scale; sx += 1) {
+        for (let sy = 0; sy < cell; sy += 1) {
+          for (let sx = 0; sx < cell; sx += 1) {
             const px = cursor + column * scale + sx
             const py = y + row * scale + sy
-            if (px < 0 || px >= 64 || py < 0 || py >= 64) continue
+            if (px < 0 || px >= canvas || py < 0 || py >= canvas) continue
             const tone = typeof color === 'function' ? color(px - x, py - y) : color
-            const offset = (py * 64 + px) * 4
+            const offset = (py * canvas + px) * 4
             data[offset] = tone[0]
             data[offset + 1] = tone[1]
             data[offset + 2] = tone[2]

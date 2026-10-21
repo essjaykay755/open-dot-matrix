@@ -36,6 +36,16 @@ Zoom the interface with Ctrl+= and Ctrl+- (Cmd on macOS), and reset it with Ctrl
 The Weather tab shows live conditions for a city as an animated 64×64 pixel scene (sun, moon and stars, clouds, rain, snow, fog, or lightning) with the temperature, the day's high and low, and the city name. Weather data comes from [Open-Meteo](https://open-meteo.com/), which is free and needs no API key.
 
 - Search for a city and pick it from the list. Choose °C or °F and which details to show.
+- Pick a style. Animated previews of each style are in [docs/weather-previews](docs/weather-previews).
+
+  | Style | Look |
+  | --- | --- |
+  | Scene | Full-colour animated sky |
+  | Bold | Huge temperature with a shine sweeping across it |
+  | Glyph | White line-art icons with lime accents |
+  | Phosphor | Lime CRT glow with scanlines |
+  | Dots | Lime dot matrix, one LED per dot |
+  | Gauge | Lime dial that fills from today's low to high |
 - Turn on **Update the panel automatically** and choose an interval from 5 minutes to 1 hour. Each update fetches fresh weather and sends the animation as a GIF.
 - **Reconnect automatically** remembers the last panel you picked. If the Bluetooth link drops, or the app was restarted, the next update scans for that panel and reconnects without the picker.
 - **Keep running in the tray** keeps updates going after the window is closed. Use the tray icon to reopen the window, push an update now, or quit.

@@ -16,6 +16,7 @@ import {
 } from '../lib/weatherService'
 import { Icon } from './Icons'
 import { Group, Segmented, ToggleRow, Tool } from './ui'
+import { WeatherStyleGallery } from './WeatherStyleGallery'
 
 const BACKGROUND_KEY = 'odm.background.v1'
 
@@ -331,6 +332,18 @@ export function WeatherPanel({
       ) : (
         <p className="weather-empty">Type a city name and pick it from the list. No account or API key needed.</p>
       )}
+
+      <Group label="Style">
+        <WeatherStyleGallery
+          report={report}
+          location={settings.location}
+          value={settings.style}
+          showHighLow={settings.showHighLow}
+          showCity={settings.showCity}
+          animate={active}
+          onChange={(style) => changeDisplay({ style })}
+        />
+      </Group>
 
       {status.phase === 'error' && status.message && <p className="inline-error">{status.message}</p>}
     </Tool>

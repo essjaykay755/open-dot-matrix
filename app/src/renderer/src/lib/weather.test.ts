@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { measureText, normalizeForFont } from './pixelFont'
 import { conditionFromCode, type WeatherReport } from './weather'
-import { FRAME_COUNT, FRAME_DELAY_MS, renderWeatherArt } from './weatherArt'
+import { FRAME_COUNT, FRAME_DELAY_MS, renderWeatherArt, WEATHER_STYLES } from './weatherArt'
 
 function report(overrides: Partial<WeatherReport> = {}): WeatherReport {
   return {
@@ -45,12 +45,13 @@ describe('pixel font', () => {
   it('measures glyph widths with spacing', () => {
     expect(measureText('AB')).toBe(7)
     expect(measureText('23°', { size: 'large', scale: 2 })).toBe(32)
+    expect(normalizeForFont('Kolkata', 'large')).toBe('KOLKATA')
   })
 })
 
 describe('renderWeatherArt', () => {
   it('renders a looping 64×64 GIF within the panel limits', () => {
-    const art = renderWeatherArt(report(), { showHighLow: true, showCity: true })
+    const art = renderWeatherArt(report(), { style: 'scene', showHighLow: true, showCity: true })
     expect(art.preview.frames).toHaveLength(FRAME_COUNT)
     expect(FRAME_COUNT * FRAME_DELAY_MS).toBeLessThanOrEqual(2000)
     for (const frame of art.preview.frames) expect(frame.data).toHaveLength(64 * 64 * 4)
@@ -61,9 +62,44 @@ describe('renderWeatherArt', () => {
   it('animates every condition', () => {
     const conditions = ['clear', 'partly-cloudy', 'cloudy', 'fog', 'drizzle', 'rain', 'snow', 'thunder'] as const
     for (const condition of conditions) {
-      const frames = renderWeatherArt(report({ condition }), { showHighLow: false, showCity: false }).preview.frames
-      const differs = frames.some((frame) => frame.data.some((value, index) => value !== frames[0].data[index]))
-      expect(differs, condition).toBe(true)
+      for (const style of WEATHER_STYLES) {
+        const options = { style: style.id, showHighLow: true, showCity: true }
+        const frames = renderWeatherArt(report({ condition }), options).preview.frames
+        const differs = frames.some((frame) => frame.data.some((value, index) => value !== frames[0].data[index]))
+        expect(differs, `${style.id} ${condition}`).toBe(true)
+      }
+    }
+  })
+
+  it('centres the artwork and text on both axes', () => {
+    for (const style of WEATHER_STYLES) {
+      if (style.id === 'gauge' || style.id === 'dots') continue
+      for (const condition of ['clear', 'rain', 'snow'] as const) {
+        const frame = renderWeatherArt(report({ condition }), { style: style.id, showHighLow: true, showCity: true })
+          .preview.frames[0].data
+        const lit = litBounds(frame)
+        const label = `${style.id} ${condition}`
+        expect(Math.abs(lit.left - (63 - lit.right)), label).toBeLessThanOrEqual(2)
+        expect(Math.abs(lit.top - (63 - lit.bottom)), label).toBeLessThanOrEqual(2)
+        expect(lit.top, label).toBeGreaterThanOrEqual(0)
+        expect(lit.bottom, label).toBeLessThanOrEqual(63)
+      }
     }
   })
 })
+
+/** Bounds of clearly lit pixels, ignoring the dark sky gradient and faint stars. */
+function litBounds(data: Uint8ClampedArray): { left: number; top: number; right: number; bottom: number } {
+  const bounds = { left: 64, top: 64, right: -1, bottom: -1 }
+  for (let y = 0; y < 64; y += 1) {
+    for (let x = 0; x < 64; x += 1) {
+      const offset = (y * 64 + x) * 4
+      if (Math.max(data[offset], data[offset + 1], data[offset + 2]) < 120) continue
+      bounds.left = Math.min(bounds.left, x)
+      bounds.right = Math.max(bounds.right, x)
+      bounds.top = Math.min(bounds.top, y)
+      bounds.bottom = Math.max(bounds.bottom, y)
+    }
+  }
+  return bounds
+}
