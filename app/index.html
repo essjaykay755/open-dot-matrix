@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>iDotMatrix Desktop</title>
+  <link rel="stylesheet" href="renderer/styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">iDot<span>Matrix</span> Desktop <em>64x64</em></div>
+    <div id="conn-status" class="conn status-off">Not connected</div>
+    <button id="btn-connect" class="primary">Connect device</button>
+  </header>
+
+  <div class="layout">
+    <nav class="side">
+      <button data-tab="image"  class="active">Image</button>
+      <button data-tab="gif">Animation</button>
+      <button data-tab="text">Text</button>
+      <button data-tab="draw">Live draw</button>
+      <button data-tab="ctrl">Device</button>
+      <button data-tab="log">Log</button>
+    </nav>
+
+    <main class="main">
+      <section id="panel-image" class="panel active">
+        <h2>Still image</h2>
+        <div class="row">
+          <label>File <input type="file" id="img-file" accept="image/*"></label>
+          <select id="img-fit"><option value="fit">Fit (aspect, black bars)</option><option value="stretch">Stretch</option></select>
+          <select id="img-duration">
+            <option value="5">Show 5 s</option><option value="10">10 s</option><option value="30">30 s</option>
+            <option value="60">60 s</option><option value="300">5 min</option>
+          </select>
+          <select id="img-mode"><option value="13">Upload image (RGB)</option></select>
+          <button id="img-send" class="primary">Send to display</button>
+        </div>
+        <p class="hint">PNG / JPG / WebP — resized to the panel size (RGB888, row-major).</p>
+        <div class="prev-row">
+          <canvas id="img-preview" width="64" height="64" class="prev"></canvas>
+        </div>
+      </section>
+
+      <section id="panel-gif" class="panel">
+        <h2>Animation (GIF)</h2>
+        <div class="row">
+          <label>File <input type="file" id="gif-file" accept="image/gif"></label>
+          <select id="gif-fit"><option value="fit">Fit</option><option value="stretch">Stretch</option></select>
+          <select id="gif-duration">
+            <option value="5">Show 5 s</option><option value="10">10 s</option><option value="30">30 s</option>
+            <option value="60">60 s</option><option value="300">5 min</option>
+          </select>
+          <button id="gif-send" class="primary">Send animation</button>
+        </div>
+        <p class="hint">Frames are decoded, scaled to the panel, re-encoded as GIF89a and pushed as a native animation material.</p>
+        <div class="prev-row">
+          <canvas id="gif-preview" width="64" height="64" class="prev"></canvas>
+        </div>
+      </section>
+
+      <section id="panel-text" class="panel">
+        <h2>Text</h2>
+        <textarea id="txt-input" rows="2" placeholder="Type text…">Hi!</textarea>
+        <div class="row">
+          <select id="txt-font"></select>
+          <label><input type="checkbox" id="txt-bold"> Bold</label>
+          <select id="txt-mode">
+            <option value="0">Fixed</option><option value="1" selected>Scroll left</option><option value="2">Scroll right</option>
+            <option value="3">Scroll up</option><option value="4">Scroll down</option>
+            <option value="5">Blink</option><option value="6">Breathe</option>
+            <option value="7">Snowflake</option><option value="8">Laser</option>
+          </select>
+          <label>Speed <input type="range" id="txt-speed" min="10" max="200" value="85"></label>
+          <label>Color <input type="color" id="txt-color" value="#ffffff"></label>
+          <label>Bg <input type="color" id="txt-bg" value="#000000"></label>
+          <button id="txt-send" class="primary">Send text</button>
+        </div>
+        <div class="prev-row"><canvas id="txt-preview" width="64" height="64" class="prev"></canvas></div>
+      </section>
+
+      <section id="panel-draw" class="panel">
+        <h2>Live draw (device DIY mode)</h2>
+        <div class="row">
+          <input type="color" id="draw-color" value="#ff3022">
+          <select id="draw-erase"><option value="0">Pen</option><option value="1">Eraser</option></select>
+          <select id="draw-rgb"><option value="RGB">RGB order</option><option value="BGR">BGR order (some devices)</option></select>
+          <button id="draw-enter-clear">Enter (clear)</button>
+          <button id="draw-enter-keep">Enter (keep)</button>
+          <button id="draw-quit">Quit (keep shown)</button>
+          <button id="draw-quit-nosave">Quit (no save)</button>
+        </div>
+        <div class="row">
+          <input type="file" id="draw-import" accept="image/*" style="display:none">
+          <button id="draw-import-btn">Import image to grid</button>
+          <button id="draw-clear-grid">Clear grid</button>
+          <button id="grid-to-device" class="primary">Push grid as image</button>
+        </div>
+        <p class="hint">Paints pixels live on the device (protocol cmd 05 01 layer). Big grid = your canvas; it mirrors to the device as you drag.</p>
+        <div class="prev-row"><canvas id="draw-grid" width="64" height="64" class="prev big"></canvas></div>
+      </section>
+
+      <section id="panel-ctrl" class="panel">
+        <h2>Device control</h2>
+        <div class="card" id="device-card">No device info yet. Connect first — the panel pushes its identity right after pairing.</div>
+        <div class="row">
+          <label>Brightness <input type="range" id="ctl-bright" min="0" max="255" value="150"></label>
+          <button id="ctl-bright-set">Set</button>
+          <label>Speed <input type="range" id="ctl-speed" min="0" max="255" value="85"></label>
+          <button id="ctl-speed-set">Set</button>
+        </div>
+        <div class="row">
+          <label>Countdown h <input type="number" id="cd-h" value="0" min="0" max="255" class="num"></label>
+          <label>m <input type="number" id="cd-m" value="0" min="0" max="59" class="num"></label>
+          <label>s <input type="number" id="cd-s" value="10" min="0" max="59" class="num"></label>
+          <button id="ctl-countdown">Start countdown</button>
+          <button id="ctl-stopwatch">Toggle stopwatch</button>
+        </div>
+        <div class="row">
+          <label>Red <input type="number" id="sb-r" value="0" class="num"></label>
+          <label>Blue <input type="number" id="sb-b" value="0" class="num"></label>
+          <button id="ctl-score">Update scoreboard</button>
+        </div>
+        <div class="row">
+          <button id="ctl-time">Sync clock</button>
+          <button id="ctl-rotate">Rotate 180°</button>
+          <button id="ctl-indicator">Time indicator</button>
+          <button id="ctl-reset" class="danger">Reset device</button>
+          <button id="ctl-wipe" class="danger">Wipe device materials</button>
+        </div>
+        <div class="row">
+          <label>PIN (6 digits) <input type="text" id="ctl-pin" maxlength="6" class="num" placeholder="123123"></label>
+          <button id="ctl-verify">Verify PIN</button>
+        </div>
+      </section>
+
+      <section id="panel-log" class="panel">
+        <h2>Log</h2>
+        <pre id="log"></pre>
+      </section>
+
+      <div class="progress-wrap" id="progress-wrap" hidden>
+        <span id="progress-label"></span>
+        <div class="bar"><div id="progress-fill"></div></div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="renderer/app.js"></script>
+</body>
+</html>
