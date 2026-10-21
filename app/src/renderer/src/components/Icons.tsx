@@ -26,6 +26,11 @@ export type IconName =
   | 'timer'
   | 'scoreboard'
   | 'menu'
+  | 'sun'
+  | 'activity'
+  | 'cloud'
+  | 'search'
+  | 'pin'
 
 interface IconProps extends SVGProps<SVGSVGElement> {
   name: IconName
@@ -224,6 +229,31 @@ function paths(name: IconName): JSX.Element {
           <path d="M4 7h16" />
           <path d="M4 12h16" />
           <path d="M4 17h16" />
+        </>
+      )
+    case 'sun':
+      return (
+        <>
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+        </>
+      )
+    case 'activity':
+      return <path d="M3 12h4l3-8 4 16 3-8h4" />
+    case 'cloud':
+      return <path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 17.8 8.5 4.75 4.75 0 0 1 17.25 18H7Z" />
+    case 'search':
+      return (
+        <>
+          <circle cx="11" cy="11" r="6.5" />
+          <path d="m20 20-4.4-4.4" />
+        </>
+      )
+    case 'pin':
+      return (
+        <>
+          <path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z" />
+          <circle cx="12" cy="10" r="2.3" />
         </>
       )
   }

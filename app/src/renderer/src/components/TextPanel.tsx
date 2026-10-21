@@ -4,28 +4,28 @@ import { buildTextPacket, type TextPacket, type TextStyle } from '../lib/protoco
 import type { PreviewContent } from '../lib/preview'
 import { rasterizeText, type RasterizedText } from '../lib/textRaster'
 import { Icon } from './Icons'
-import { ColorField, RangeField, Segmented } from './ui'
+import { ColorField, Group, RangeField, Segmented, Tool } from './ui'
 
 const TEXT_MODES = [
   { value: 0, label: 'Static' },
-  { value: 1, label: 'Marquee left' },
-  { value: 2, label: 'Marquee right' },
-  { value: 3, label: 'Rise up' },
-  { value: 4, label: 'Drop down' },
+  { value: 1, label: 'Scroll ←' },
+  { value: 2, label: 'Scroll →' },
+  { value: 3, label: 'Rise' },
+  { value: 4, label: 'Drop' },
   { value: 5, label: 'Blink' },
   { value: 6, label: 'Fade' },
   { value: 7, label: 'Tetris' },
   { value: 8, label: 'Fill' }
 ]
 
-const PRESETS = ['HELLO', 'GOOD VIBES', 'OPEN DOT', '23:59']
-
 export function TextPanel({
   busy,
+  connected,
   onPreview,
   onSend
 }: {
   busy: boolean
+  connected: boolean
   onPreview: (content: PreviewContent) => void
   onSend: (packet: TextPacket) => Promise<void>
 }): JSX.Element {
@@ -75,103 +75,28 @@ export function TextPanel({
   }
 
   return (
-    <div className="work-panel">
-      <header className="work-head">
-        <div>
-          <span className="eyebrow">03 / Text</span>
-          <h2>Type in pixels, not fonts.</h2>
-          <p>
-            Each character becomes a 1-bit glyph cell: 32×64 for Latin, 64×64 for CJK and other
-            wide scripts. The device handles the animation.
-          </p>
-        </div>
-        <span className="work-badge">1-bit glyphs · 14 B meta</span>
-      </header>
-
-      <div className="editor-grid">
-        <div className="editor-main">
-          <div className="text-input-wrap">
-            <label className="field-label" htmlFor="panel-text">
-              Message
-            </label>
-            <textarea
-              id="panel-text"
-              rows={3}
-              maxLength={80}
-              value={text}
-              spellCheck={false}
-              placeholder="Type something for the matrix…"
-              onChange={(event) => setText(event.target.value)}
-            />
-            <div className="text-input-foot">
-              <span>{text.length} / 80 characters</span>
-              <span>{raster ? `${raster.glyphs.length} glyphs` : 'Ready'}</span>
-            </div>
-          </div>
-
-          <div className="preset-row">
-            <span>Try</span>
-            {PRESETS.map((preset) => (
-              <button key={preset} type="button" onClick={() => setText(preset)}>
-                {preset}
-              </button>
-            ))}
-          </div>
-
-          <div className="packet-strip">
-            <span>
-              <Icon name="text" size={14} />
-              {packet ? `${packet.payload.length.toLocaleString()} payload bytes` : 'No glyphs'}
-            </span>
-            <span>
-              {packet ? `${packet.chunks.length} protocol chunk${packet.chunks.length === 1 ? '' : 's'}` : '—'}
-            </span>
-            <span>{text.length} UTF-16 units</span>
-          </div>
-        </div>
-
-        <div className="editor-side">
-          <label className="field">
-            <span className="field-label">Motion</span>
-            <select value={mode} onChange={(event) => setMode(Number(event.target.value))}>
-              {TEXT_MODES.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <RangeField
-            label="Speed"
-            value={speed}
-            min={5}
-            max={100}
-            onChange={setSpeed}
-            display={`${speed}%`}
-          />
-
-          <div className="field-group">
-            <span className="field-label">Ink</span>
+    <Tool
+      title="Text"
+      description="Write a message and choose how it moves. Glyphs are rendered on your computer, then sent as a strip."
+      status={text.length ? { tone: 'ready', label: 'Ready to send' } : { tone: 'idle', label: 'Empty message' }}
+      side={
+        <>
+          <Group label="Speed">
+            <RangeField label="Animation speed" value={speed} min={5} max={100} onChange={setSpeed} display={`${speed}%`} />
+          </Group>
+          <Group label="Ink">
             <Segmented
               value={colorMode}
               options={[
-                { value: 0, label: 'Single' },
+                { value: 0, label: 'Solid' },
                 { value: 1, label: 'Rainbow' }
               ]}
               onChange={setColorMode}
               label="Text color mode"
             />
-          </div>
-          <ColorField
-            label="Text color"
-            value={color}
-            onChange={setColor}
-            disabled={colorMode === 1}
-          />
-
-          <div className="field-group">
-            <span className="field-label">Background</span>
+            {colorMode === 0 && <ColorField label="Text color" value={color} onChange={setColor} />}
+          </Group>
+          <Group label="Background">
             <Segmented
               value={backgroundMode}
               options={[
@@ -181,31 +106,48 @@ export function TextPanel({
               onChange={setBackgroundMode}
               label="Text background mode"
             />
-          </div>
-          <ColorField
-            label="Background color"
-            value={background}
-            onChange={setBackground}
-            disabled={backgroundMode === 0}
-          />
-        </div>
-      </div>
-
-      <footer className="action-row">
-        <span className="action-hint">
-          <Icon name="text" size={14} />
-          Pure black is nudged to blue 1 so the panel never drops the glyph.
-        </span>
+            {backgroundMode === 1 && <ColorField label="Background color" value={background} onChange={setBackground} />}
+          </Group>
+        </>
+      }
+      summary={
+        packet ? (
+          <>
+            <strong>{text.length} characters</strong>
+            <span>{TEXT_MODES.find((option) => option.value === mode)?.label} · {speed}% speed</span>
+          </>
+        ) : (
+          <span>Type a message to continue</span>
+        )
+      }
+      actions={
         <button
           type="button"
-          className="btn btn-primary send-button"
-          disabled={!packet || busy}
+          className="btn btn-primary btn-lg"
+          disabled={!packet || busy || !connected}
           onClick={() => void send()}
         >
+          {busy ? 'Sending…' : 'Send to panel'}
           <Icon name="upload" size={16} />
-          {busy ? 'Sending…' : 'Send text'}
         </button>
-      </footer>
-    </div>
+      }
+    >
+      <div className="text-input-wrap">
+        <textarea
+          id="message-text"
+          aria-label="Message"
+          rows={3}
+          maxLength={80}
+          value={text}
+          spellCheck={false}
+          placeholder="Type something for the matrix…"
+          onChange={(event) => setText(event.target.value)}
+        />
+        <span className="text-count">{text.length} / 80</span>
+      </div>
+      <Group label="Motion">
+        <Segmented value={mode} options={TEXT_MODES} onChange={setMode} label="Text motion" columns={3} />
+      </Group>
+    </Tool>
   )
 }

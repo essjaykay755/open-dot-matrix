@@ -3,22 +3,37 @@ import { hexToRgb } from '../lib/color'
 import { createLabelFrame } from '../lib/image'
 import { solidPreview, type PreviewContent } from '../lib/preview'
 import type { ClockOptions, Rgb } from '../lib/protocol'
-import { Icon } from './Icons'
-import { ColorField, ToggleRow } from './ui'
+import { Icon, type IconName } from './Icons'
+import { ColorField, Group, Segmented, ToggleRow, Tool } from './ui'
 
-const CLOCK_STYLES = [
-  'Style 01',
-  'Style 02',
-  'Style 03',
-  'Style 04',
-  'Style 05',
-  'Style 06',
-  'Style 07',
-  'Style 08'
+type Mode = 'color' | 'clock' | 'countdown' | 'stopwatch' | 'score' | 'screen'
+
+const MODES: { id: Mode; label: string; icon: IconName; description: string }[] = [
+  { id: 'color', label: 'Color', icon: 'palette', description: 'Fill the whole panel with one color.' },
+  { id: 'clock', label: 'Clock', icon: 'clock', description: 'Show one of the built-in clock faces.' },
+  { id: 'countdown', label: 'Countdown', icon: 'timer', description: 'Count down from a set time.' },
+  { id: 'stopwatch', label: 'Stopwatch', icon: 'play', description: 'Run the on-device stopwatch.' },
+  { id: 'score', label: 'Scoreboard', icon: 'scoreboard', description: 'Keep a two-sided scoreboard.' },
+  { id: 'screen', label: 'Screen', icon: 'monitor', description: 'Sleep timer and the time indicator.' }
+]
+
+const CLOCK_STYLES = Array.from({ length: 8 }, (_, index) => ({
+  value: index,
+  label: String(index + 1)
+}))
+
+const TIMEOUT_OPTIONS = [
+  { value: 0, label: 'Never' },
+  { value: 30, label: '30 sec' },
+  { value: 60, label: '1 min' },
+  { value: 120, label: '2 min' },
+  { value: 240, label: '4 min' },
+  { value: 254, label: 'Max' }
 ]
 
 export function ModesPanel({
   busy,
+  connected,
   onPreview,
   onColor,
   onClock,
@@ -29,6 +44,7 @@ export function ModesPanel({
   onTimeIndicator
 }: {
   busy: boolean
+  connected: boolean
   onPreview: (content: PreviewContent) => void
   onColor: (color: Rgb) => Promise<void>
   onClock: (options: ClockOptions) => Promise<void>
@@ -38,6 +54,7 @@ export function ModesPanel({
   onScreenTimeout: (value: number) => Promise<void>
   onTimeIndicator: (enabled: boolean) => Promise<void>
 }): JSX.Element {
+  const [active, setActive] = useState<Mode>('color')
   const [color, setColor] = useState('#ff5a36')
   const [clockStyle, setClockStyle] = useState(0)
   const [showDate, setShowDate] = useState(true)
@@ -49,6 +66,9 @@ export function ModesPanel({
   const [scoreB, setScoreB] = useState(0)
   const [screenTimeout, setScreenTimeout] = useState(60)
   const [timeIndicator, setTimeIndicator] = useState(true)
+
+  const disabled = busy || !connected
+  const current = MODES.find((mode) => mode.id === active) ?? MODES[0]
 
   function showLabel(label: string): void {
     onPreview({
@@ -95,81 +115,130 @@ export function ModesPanel({
     await onScreenTimeout(screenTimeout)
   }
 
+  const footer: Record<Mode, JSX.Element> = {
+    color: (
+      <button type="button" className="btn btn-primary btn-lg" disabled={disabled} onClick={() => void applyColor()}>
+        <Icon name="bolt" size={15} />
+        Apply color
+      </button>
+    ),
+    clock: (
+      <button type="button" className="btn btn-primary btn-lg" disabled={disabled} onClick={() => void applyClock()}>
+        <Icon name="clock" size={15} />
+        Show clock
+      </button>
+    ),
+    countdown: (
+      <div className="button-row">
+        <button type="button" className="btn btn-primary btn-lg" disabled={disabled} onClick={() => void startCountdown()}>
+          <Icon name="play" size={14} />
+          Start
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary btn-lg"
+          disabled={disabled}
+          onClick={() => {
+            showLabel('TIMER STOP')
+            void onCountdown(0, 0, 0)
+          }}
+        >
+          <Icon name="stop" size={14} />
+          Stop
+        </button>
+      </div>
+    ),
+    stopwatch: (
+      <div className="button-row">
+        <button
+          type="button"
+          className="btn btn-primary btn-lg"
+          disabled={disabled}
+          onClick={() => {
+            showLabel('RUN')
+            void onChronograph(1)
+          }}
+        >
+          <Icon name="play" size={14} />
+          Start
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary btn-lg"
+          disabled={disabled}
+          onClick={() => {
+            showLabel('STOP')
+            void onChronograph(0)
+          }}
+        >
+          <Icon name="stop" size={14} />
+          Stop
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary btn-lg btn-icon"
+          disabled={disabled}
+          aria-label="Reset stopwatch"
+          title="Reset"
+          onClick={() => {
+            showLabel('RESET')
+            void onChronograph(2)
+          }}
+        >
+          <Icon name="reset" size={16} />
+        </button>
+      </div>
+    ),
+    score: (
+      <button type="button" className="btn btn-primary btn-lg" disabled={disabled} onClick={() => void applyScoreboard()}>
+        <Icon name="scoreboard" size={15} />
+        Update score
+      </button>
+    ),
+    screen: (
+      <button type="button" className="btn btn-primary btn-lg" disabled={disabled} onClick={() => void applyTimeout()}>
+        <Icon name="monitor" size={15} />
+        Apply timeout
+      </button>
+    )
+  }
+
   return (
-    <div className="work-panel">
-      <header className="work-head">
-        <div>
-          <span className="eyebrow">04 / Modes</span>
-          <h2>Native light, no uploads.</h2>
-          <p>
-            Clock, countdown, stopwatch, scoreboard, and fullscreen color are rendered by the panel
-            itself. Open Dot Matrix only sends the command packet.
-          </p>
-        </div>
-        <span className="work-badge">Native firmware modes</span>
-      </header>
+    <Tool
+      title="Modes"
+      description="Hand the panel over to its built-in apps. They keep running after you disconnect."
+      status={connected ? { tone: 'ready', label: current.label } : { tone: 'idle', label: 'Offline' }}
+      summary={
+        <>
+          <strong>{current.label}</strong>
+          <span>{current.description}</span>
+        </>
+      }
+      actions={footer[active]}
+      side={
+        <Group label={`${current.label} settings`}>
+        {active === 'color' && (
+          <>
+            <div className="color-hero" style={{ background: color, color }} aria-hidden="true" />
+            <ColorField label="Color" value={color} onChange={setColor} />
+          </>
+        )}
 
-      <div className="mode-grid">
-        <section className="mode-card">
-          <div className="mode-title">
-            <span className="mode-icon">
-              <Icon name="palette" size={17} />
-            </span>
-            <div>
-              <strong>Fullscreen color</strong>
-              <span>Flood the grid</span>
+        {active === 'clock' && (
+          <>
+            <div className="field">
+              <span className="field-label">Clock face</span>
+              <Segmented label="Clock face" value={clockStyle} options={CLOCK_STYLES} onChange={setClockStyle} columns={4} />
             </div>
-          </div>
-          <ColorField label="Color" value={color} onChange={setColor} />
-          <button type="button" className="btn btn-secondary full" disabled={busy} onClick={() => void applyColor()}>
-            <Icon name="bolt" size={15} />
-            Apply color
-          </button>
-        </section>
+            <ColorField label="Color" value={clockColor} onChange={setClockColor} />
+            <div className="toggle-stack">
+              <ToggleRow label="Show date" checked={showDate} onChange={setShowDate} />
+              <ToggleRow label="24-hour clock" checked={hour24} onChange={setHour24} />
+            </div>
+          </>
+        )}
 
-        <section className="mode-card">
-          <div className="mode-title">
-            <span className="mode-icon">
-              <Icon name="clock" size={17} />
-            </span>
-            <div>
-              <strong>Clock</strong>
-              <span>Uses the host time</span>
-            </div>
-          </div>
-          <label className="field compact-field">
-            <span className="field-label">Clock face</span>
-            <select value={clockStyle} onChange={(event) => setClockStyle(Number(event.target.value))}>
-              {CLOCK_STYLES.map((label, index) => (
-                <option key={label} value={index}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <ColorField label="Color" value={clockColor} onChange={setClockColor} />
-          <div className="toggle-stack tight">
-            <ToggleRow label="Show date" checked={showDate} onChange={setShowDate} />
-            <ToggleRow label="24-hour clock" checked={hour24} onChange={setHour24} />
-          </div>
-          <div className="mode-actions">
-            <button type="button" className="btn btn-secondary full" disabled={busy} onClick={() => void applyClock()}>
-              <Icon name="clock" size={15} />
-              Show clock
-            </button>
-          </div>
-        </section>
-
-        <section className="mode-card">
-          <div className="mode-title">
-            <span className="mode-icon">
-              <Icon name="timer" size={17} />
-            </span>
-            <div>
-              <strong>Countdown</strong>
-              <span>Minutes and seconds</span>
-            </div>
-          </div>
+        {active === 'countdown' && (
           <div className="number-pair">
             <label>
               <span className="field-label">Minutes</span>
@@ -181,6 +250,7 @@ export function ModesPanel({
                 onChange={(event) => setCountdownMinutes(Number(event.target.value))}
               />
             </label>
+            <span className="number-sep" aria-hidden="true">:</span>
             <label>
               <span className="field-label">Seconds</span>
               <input
@@ -192,92 +262,16 @@ export function ModesPanel({
               />
             </label>
           </div>
-          <div className="mode-actions">
-            <button
-              type="button"
-              className="btn btn-primary grow"
-              disabled={busy}
-              onClick={() => void startCountdown()}
-            >
-              <Icon name="play" size={14} />
-              Start
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost grow"
-              disabled={busy}
-              onClick={() => {
-                showLabel('TIMER STOP')
-                void onCountdown(0, 0, 0)
-              }}
-            >
-              <Icon name="stop" size={14} />
-              Stop
-            </button>
-          </div>
-        </section>
+        )}
 
-        <section className="mode-card">
-          <div className="mode-title">
-            <span className="mode-icon">
-              <Icon name="timer" size={17} />
-            </span>
-            <div>
-              <strong>Stopwatch</strong>
-              <span>Firmware chronograph</span>
-            </div>
+        {active === 'stopwatch' && (
+          <div className="mode-empty">
+            <Icon name="timer" size={24} />
+            <span>No settings needed. Start, stop or reset from the bar below.</span>
           </div>
-          <p className="mode-copy">Start, stop, or reset the panel’s built-in stopwatch.</p>
-          <div className="mode-actions">
-            <button
-              type="button"
-              className="btn btn-primary grow"
-              disabled={busy}
-              onClick={() => {
-                showLabel('RUN')
-                void onChronograph(1)
-              }}
-            >
-              <Icon name="play" size={14} />
-              Start
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary grow"
-              disabled={busy}
-              onClick={() => {
-                showLabel('STOP')
-                void onChronograph(0)
-              }}
-            >
-              <Icon name="stop" size={14} />
-              Stop
-            </button>
-            <button
-              type="button"
-              className="icon-button"
-              disabled={busy}
-              aria-label="Reset stopwatch"
-              onClick={() => {
-                showLabel('RESET')
-                void onChronograph(2)
-              }}
-            >
-              <Icon name="reset" size={16} />
-            </button>
-          </div>
-        </section>
+        )}
 
-        <section className="mode-card">
-          <div className="mode-title">
-            <span className="mode-icon">
-              <Icon name="scoreboard" size={17} />
-            </span>
-            <div>
-              <strong>Scoreboard</strong>
-              <span>Two score counters</span>
-            </div>
-          </div>
+        {active === 'score' && (
           <div className="number-pair">
             <label>
               <span className="field-label">Home</span>
@@ -289,6 +283,7 @@ export function ModesPanel({
                 onChange={(event) => setScoreA(Number(event.target.value))}
               />
             </label>
+            <span className="number-sep" aria-hidden="true">–</span>
             <label>
               <span className="field-label">Away</span>
               <input
@@ -300,58 +295,46 @@ export function ModesPanel({
               />
             </label>
           </div>
-          <button type="button" className="btn btn-secondary full" disabled={busy} onClick={() => void applyScoreboard()}>
-            <Icon name="scoreboard" size={15} />
-            Update score
-          </button>
-        </section>
+        )}
 
-        <section className="mode-card">
-          <div className="mode-title">
-            <span className="mode-icon">
-              <Icon name="monitor" size={17} />
-            </span>
-            <div>
-              <strong>Screen behavior</strong>
-              <span>Timeout and indicator</span>
+        {active === 'screen' && (
+          <>
+            <div className="field">
+              <span className="field-label">Turn screen off after</span>
+              <Segmented label="Screen timeout" value={screenTimeout} options={TIMEOUT_OPTIONS} onChange={setScreenTimeout} columns={3} />
             </div>
-          </div>
-          <label className="field compact-field">
-            <span className="field-label">Screen timeout</span>
-            <select
-              value={screenTimeout}
-              onChange={(event) => setScreenTimeout(Number(event.target.value))}
-            >
-              <option value={0}>Never</option>
-              <option value={30}>30 seconds</option>
-              <option value={60}>60 seconds</option>
-              <option value={120}>2 minutes</option>
-              <option value={240}>4 minutes</option>
-              <option value={254}>Maximum</option>
-            </select>
-          </label>
-          <ToggleRow
-            label="Time indicator"
-            detail="Show the clock indicator dot"
-            checked={timeIndicator}
-            onChange={(checked) => {
-              setTimeIndicator(checked)
-              void onTimeIndicator(checked)
-            }}
-          />
-          <button type="button" className="btn btn-secondary full" disabled={busy} onClick={() => void applyTimeout()}>
-            <Icon name="monitor" size={15} />
-            Apply timeout
+            <ToggleRow
+              label="Time indicator"
+              detail="Applies immediately"
+              disabled={disabled}
+              checked={timeIndicator}
+              onChange={(checked) => {
+                setTimeIndicator(checked)
+                void onTimeIndicator(checked)
+              }}
+            />
+          </>
+        )}
+        </Group>
+      }
+    >
+      <div className="mode-picker" role="group" aria-label="Panel mode">
+        {MODES.map((mode) => (
+          <button
+            key={mode.id}
+            type="button"
+            className={`mode-tile ${active === mode.id ? 'is-active' : ''}`}
+            aria-pressed={active === mode.id}
+            onClick={() => setActive(mode.id)}
+          >
+            <span className="mode-tile-icon">
+              <Icon name={mode.icon} size={18} />
+            </span>
+            <strong>{mode.label}</strong>
+            <span>{mode.description}</span>
           </button>
-        </section>
+        ))}
       </div>
-
-      <footer className="action-row">
-        <span className="action-hint">
-          <Icon name="spark" size={14} />
-          Native modes release DIY mode so the firmware can render again.
-        </span>
-      </footer>
-    </div>
+    </Tool>
   )
 }

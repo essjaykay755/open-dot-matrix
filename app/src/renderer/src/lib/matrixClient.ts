@@ -54,6 +54,7 @@ type Listener<T> = (payload: T) => void
 
 export class MatrixClient {
   private transport: Transport | null = null
+  private rememberedDevice: BluetoothDevice | null = null
   private diyActive = false
   private queue: Promise<unknown> = Promise.resolve()
   private state: MatrixState = {
@@ -86,6 +87,7 @@ export class MatrixClient {
   }
 
   async useDemo(): Promise<void> {
+    this.rememberedDevice = null
     if (this.transport?.kind === 'ble') {
       await this.transport.disconnect().catch(() => undefined)
     }
@@ -97,18 +99,39 @@ export class MatrixClient {
   }
 
   async connectBle(): Promise<void> {
+    await this.openBle(null)
+  }
+
+  /** Reconnects to the last panel picked this session (e.g. after it dropped). */
+  async reconnectBle(): Promise<boolean> {
+    if (!this.rememberedDevice) return false
+    if (this.transport?.kind === 'ble' && this.transport.isConnected) return true
+    try {
+      await this.openBle(this.rememberedDevice)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  private async openBle(device: BluetoothDevice | null): Promise<void> {
     if (this.transport) {
       await this.transport.disconnect().catch(() => undefined)
     }
 
     this.diyActive = false
-    this.setState({ mode: 'connecting', deviceName: 'Scanning…', message: 'Choose a Bluetooth device' })
+    this.setState({
+      mode: 'connecting',
+      deviceName: device ? `Reconnecting to ${device.name ?? 'panel'}…` : 'Scanning…',
+      message: device ? undefined : 'Choose a Bluetooth device'
+    })
 
-    const transport = new BleTransport(this.transportCallbacks())
+    const transport = new BleTransport(this.transportCallbacks(), device)
     this.transport = transport
 
     try {
       await transport.connect()
+      this.rememberedDevice = transport.bluetoothDevice
       this.setState({ mode: 'ble', deviceName: transport.name })
     } catch (error) {
       await transport.disconnect().catch(() => undefined)
@@ -123,6 +146,7 @@ export class MatrixClient {
   }
 
   async disconnect(): Promise<void> {
+    this.rememberedDevice = null
     const transport = this.transport
     this.transport = null
     this.diyActive = false

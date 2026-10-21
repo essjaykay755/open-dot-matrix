@@ -7,6 +7,9 @@ files:
   - out/**/*
   - package.json
 asar: true
+extraResources:
+  - from: build/icon.png
+    to: icon.png
 win:
   target:
     - nsis
@@ -14,6 +17,8 @@ mac:
   target:
     - dmg
   category: public.app-category.utilities
+  extendInfo:
+    NSBluetoothAlwaysUsageDescription: Open Dot Matrix uses Bluetooth to connect to your LED display and send images, animations, and text.
 linux:
   target:
     - AppImage

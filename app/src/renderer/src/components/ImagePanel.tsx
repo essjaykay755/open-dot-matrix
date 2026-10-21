@@ -10,7 +10,7 @@ import {
 } from '../lib/image'
 import { idlePreview, type PreviewContent } from '../lib/preview'
 import { Icon } from './Icons'
-import { ColorField, DropZone, Segmented, Spinner, ToggleRow, formatBytes } from './ui'
+import { ColorField, DropZone, Group, Segmented, Spinner, ToggleRow, Tool } from './ui'
 
 const FIT_OPTIONS: { value: FitMode; label: string }[] = [
   { value: 'contain', label: 'Fit' },
@@ -20,10 +20,12 @@ const FIT_OPTIONS: { value: FitMode; label: string }[] = [
 
 export function ImagePanel({
   busy,
+  connected,
   onPreview,
   onSend
 }: {
   busy: boolean
+  connected: boolean
   onPreview: (content: PreviewContent) => void
   onSend: (rgb: Uint8Array) => Promise<void>
 }): JSX.Element {
@@ -126,101 +128,69 @@ export function ImagePanel({
     }
   }
 
+  const tone = error ? 'error' : loading ? 'busy' : adapted ? 'ready' : 'idle'
+  const statusLabel = error ? 'Needs attention' : loading ? 'Decoding' : adapted ? 'Ready to send' : 'No image'
+
   return (
-    <div className="work-panel">
-      <header className="work-head">
-        <div>
-          <span className="eyebrow">01 / Image</span>
-          <h2>Turn any frame into light.</h2>
-          <p>
-            RGB888 is adapted to the 64×64 grid, split into three 4,096-byte chunks, and streamed
-            through DIY mode.
-          </p>
-        </div>
-        <span className="work-badge">64 × 64 · RGB888</span>
-      </header>
-
-      <div className="editor-grid">
-        <div className="editor-main">
-          <DropZone
-            accept="image/*"
-            file={file}
-            icon="image"
-            title="Drop an image or browse"
-            hint="PNG, JPEG, WebP, BMP · up to 25 MB"
-            onFile={(next) => void acceptFile(next)}
-            onClear={clearFile}
-          />
-          <div className="inline-actions">
-            <button
-              type="button"
-              className="btn btn-ghost small"
-              onClick={useCalibration}
-              disabled={loading}
-            >
-              <Icon name="spark" size={14} />
-              Load calibration bars
-            </button>
-            {loading && <Spinner label="Decoding image…" />}
-            {adapted && !loading && (
-              <span className="ready-note">
-                <Icon name="check" size={13} />
-                12,288 bytes ready
-              </span>
-            )}
-          </div>
-          {error && <p className="inline-error">{error}</p>}
-          {file && (
-            <div className="source-strip">
-              <span>
-                <strong>{file.name}</strong>
-                {file.type || 'image'}
-              </span>
-              <span>{formatBytes(file.size)}</span>
-              <span>{bitmap ? `${bitmap.width} × ${bitmap.height}` : '—'}</span>
-            </div>
-          )}
-        </div>
-
-        <div className="editor-side">
-          <div className="field-group">
-            <span className="field-label">Framing</span>
+    <Tool
+      title="Image"
+      description="Drop in any picture. It is framed, scaled and color-matched to the 64 × 64 panel."
+      status={{ tone, label: statusLabel }}
+      side={
+        <>
+          <Group label="Framing">
             <Segmented value={fit} options={FIT_OPTIONS} onChange={setFit} label="Image framing" />
-            <p className="field-hint">Fit letterboxes, Fill crops, Stretch distorts.</p>
-          </div>
-          <ColorField label="Matte color" value={background} onChange={setBackground} />
-          <div className="toggle-stack">
-            <ToggleRow
-              label="Rotate 180°"
-              detail="Bake rotation into the pixels"
-              checked={rotate}
-              onChange={setRotate}
-            />
-            <ToggleRow
-              label="Hard pixels"
-              detail="Nearest-neighbor downscaling"
-              checked={pixelate}
-              onChange={setPixelate}
-            />
-          </div>
-        </div>
-      </div>
-
-      <footer className="action-row">
-        <span className="action-hint">
-          <Icon name="monitor" size={14} />
-          One frame · 3 protocol chunks · 27 BLE writes
-        </span>
+          </Group>
+          <Group label="Background">
+            <ColorField label="Fill behind the image" value={background} onChange={setBackground} />
+          </Group>
+          <Group label="Adjust">
+            <div className="toggle-stack">
+              <ToggleRow label="Rotate 180°" detail="For panels mounted upside down" checked={rotate} onChange={setRotate} />
+              <ToggleRow label="Pixelated scaling" detail="Crisp nearest-neighbour edges" checked={pixelate} onChange={setPixelate} />
+            </div>
+          </Group>
+        </>
+      }
+      summary={
+        adapted ? (
+          <>
+            <strong>{file?.name ?? 'Calibration bars'}</strong>
+            <span>{bitmap ? `${bitmap.width} × ${bitmap.height}` : '64 × 64'} → 64 × 64 · 12,288 bytes</span>
+          </>
+        ) : (
+          <span>{connected ? 'Choose an image to continue' : 'Connect a panel or start the demo to send'}</span>
+        )
+      }
+      actions={
         <button
           type="button"
-          className="btn btn-primary send-button"
-          disabled={!adapted || busy}
+          className="btn btn-primary btn-lg"
+          disabled={!adapted || busy || !connected}
           onClick={() => void send()}
         >
+          {busy ? 'Sending…' : 'Send to panel'}
           <Icon name="upload" size={16} />
-          {busy ? 'Sending…' : 'Send frame'}
         </button>
-      </footer>
-    </div>
+      }
+    >
+      <DropZone
+        accept="image/*"
+        file={file}
+        icon="image"
+        title="Drop an image here"
+        hint="or click to browse · PNG, JPEG, WebP, BMP up to 25 MB"
+        onFile={(next) => void acceptFile(next)}
+        onClear={clearFile}
+      />
+      {error && <p className="inline-error">{error}</p>}
+      <div className="inline-actions">
+        <button type="button" className="btn btn-ghost btn-sm" onClick={useCalibration} disabled={loading}>
+          <Icon name="spark" size={14} />
+          Use test pattern
+        </button>
+        {loading && <Spinner label="Decoding…" />}
+      </div>
+    </Tool>
   )
 }

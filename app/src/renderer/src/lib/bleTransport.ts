@@ -46,12 +46,18 @@ export class BleTransport implements Transport {
   private ackQueues = new Map<number, Ack[]>()
   private callbacks: TransportCallbacks
 
-  constructor(callbacks: TransportCallbacks) {
+  /** Pass a previously chosen device to reconnect to it without opening the picker. */
+  constructor(callbacks: TransportCallbacks, device: BluetoothDevice | null = null) {
     this.callbacks = callbacks
+    this.device = device
   }
 
   get isConnected(): boolean {
     return this.connected
+  }
+
+  get bluetoothDevice(): BluetoothDevice | null {
+    return this.device
   }
 
   async connect(): Promise<void> {
@@ -59,11 +65,14 @@ export class BleTransport implements Transport {
       throw new Error('Web Bluetooth is unavailable in this runtime')
     }
 
-    this.callbacks.log('info', 'Opening Bluetooth device picker…')
-    const device = await navigator.bluetooth.requestDevice({
-      acceptAllDevices: true,
-      optionalServices: SERVICE_UUIDS
-    })
+    let device = this.device
+    if (!device) {
+      this.callbacks.log('info', 'Opening Bluetooth device picker…')
+      device = await navigator.bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: SERVICE_UUIDS
+      })
+    }
 
     this.device = device
     this.name = device.name || 'iDotMatrix'

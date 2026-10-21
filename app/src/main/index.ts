@@ -1,9 +1,21 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, nativeTheme, systemPreferences } from 'electron'
 import { join } from 'node:path'
 import type { BluetoothDeviceInfo } from '../shared/types'
+import { getAppearance, getWindowColors, installApplicationMenu, platformWindowOptions, updateWindowAppearance } from './appearance'
+import { interceptWindowClose, isKeepingInTray, setupBackground, startedHidden } from './background'
+
+if (!app.requestSingleInstanceLock()) {
+  app.quit()
+  process.exit(0)
+}
 
 let mainWindow: BrowserWindow | null = null
+let revealOnReady = !startedHidden
 let pendingBluetoothSelection: ((deviceId: string) => void) | null = null
+let autoConnectTarget: string | null = null
+let autoConnectTimer: NodeJS.Timeout | null = null
+
+const AUTO_CONNECT_TIMEOUT_MS = 20000
 
 const BLUETOOTH_PERMISSIONS = new Set(['bluetooth', 'bluetoothScanning', 'bluetoothPairing'])
 
@@ -13,6 +25,23 @@ function settleBluetoothSelection(deviceId: string): boolean {
   if (!callback) return false
   callback(deviceId)
   return true
+}
+
+function clearAutoConnect(): void {
+  autoConnectTarget = null
+  if (autoConnectTimer) clearTimeout(autoConnectTimer)
+  autoConnectTimer = null
+}
+
+function showWindow(): void {
+  revealOnReady = true
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow()
+    return
+  }
+  if (mainWindow.isMinimized()) mainWindow.restore()
+  mainWindow.show()
+  mainWindow.focus()
 }
 
 function setupBluetoothBridge(window: BrowserWindow): void {
@@ -38,6 +67,14 @@ function setupBluetoothBridge(window: BrowserWindow): void {
       return aPreferred - bPreferred || a.deviceName.localeCompare(b.deviceName)
     })
 
+    // An unattended reconnect picks the remembered panel as soon as the scan finds it.
+    const target = autoConnectTarget
+    if (target && devices.some((device) => device.deviceId === target)) {
+      clearAutoConnect()
+      settleBluetoothSelection(target)
+      return
+    }
+
     if (!window.isDestroyed()) {
       window.webContents.send('bluetooth:devices', devices)
     }
@@ -51,13 +88,16 @@ function createWindow(): void {
     minWidth: 1080,
     minHeight: 720,
     show: false,
-    autoHideMenuBar: true,
-    backgroundColor: '#08090a',
+    autoHideMenuBar: process.platform !== 'linux',
+    backgroundColor: getWindowColors().background,
     title: 'Open Dot Matrix',
+    ...platformWindowOptions(),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      // Scheduled panel updates must keep running while the window is hidden in the tray.
+      backgroundThrottling: false
     }
   })
 
@@ -70,9 +110,14 @@ function createWindow(): void {
   })
 
   setupBluetoothBridge(mainWindow)
+  interceptWindowClose(mainWindow)
 
   mainWindow.once('ready-to-show', () => {
-    mainWindow?.show()
+    if (revealOnReady) mainWindow?.show()
+  })
+
+  mainWindow.on('focus', () => {
+    if (mainWindow) updateWindowAppearance(mainWindow)
   })
 
   mainWindow.on('closed', () => {
@@ -90,13 +135,27 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  app.setName('Open Dot Matrix')
   app.setAppUserModelId('com.opendotmatrix.studio')
+  installApplicationMenu()
   createWindow()
+  setupBackground(() => mainWindow, showWindow)
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+  nativeTheme.on('updated', () => {
+    if (mainWindow) updateWindowAppearance(mainWindow)
   })
+  if (process.platform !== 'darwin') {
+    systemPreferences.on('accent-color-changed', () => {
+      if (mainWindow) updateWindowAppearance(mainWindow)
+    })
+  }
+
+  app.on('activate', showWindow)
 })
+
+app.on('second-instance', showWindow)
+
+ipcMain.handle('appearance:get', () => getAppearance())
 
 ipcMain.handle('bluetooth:select', (_event, deviceId: unknown) => {
   if (typeof deviceId !== 'string') return false
@@ -107,10 +166,34 @@ ipcMain.handle('bluetooth:cancel', () => {
   return settleBluetoothSelection('')
 })
 
+ipcMain.handle('bluetooth:auto-connect', async (_event, deviceId: unknown) => {
+  const window = mainWindow
+  if (typeof deviceId !== 'string' || !deviceId || !window || window.isDestroyed()) return false
+  clearAutoConnect()
+  autoConnectTarget = deviceId
+  autoConnectTimer = setTimeout(() => {
+    clearAutoConnect()
+    settleBluetoothSelection('')
+  }, AUTO_CONNECT_TIMEOUT_MS)
+  try {
+    // Web Bluetooth only scans inside a user gesture; executeJavaScript can supply one.
+    const connected = await window.webContents.executeJavaScript(
+      'window.__odmAutoConnect ? window.__odmAutoConnect() : false',
+      true
+    )
+    return connected === true
+  } catch {
+    return false
+  } finally {
+    clearAutoConnect()
+  }
+})
+
 app.on('before-quit', () => {
+  clearAutoConnect()
   settleBluetoothSelection('')
 })
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
+  if (process.platform !== 'darwin' && !isKeepingInTray()) app.quit()
 })

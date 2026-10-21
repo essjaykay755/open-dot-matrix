@@ -1,31 +1,69 @@
-﻿import { useRef, useState, type JSX, type KeyboardEvent, type ReactNode } from 'react'
+﻿import { useRef, useState, type CSSProperties, type JSX, type KeyboardEvent, type ReactNode } from 'react'
 import { Icon, type IconName } from './Icons'
 
-export function Panel({
-  children,
-  className = '',
+export type ToolTone = 'idle' | 'ready' | 'busy' | 'error'
+
+export function Tool({
   title,
-  eyebrow,
-  action
+  description,
+  status,
+  side,
+  summary,
+  actions,
+  children
 }: {
+  title: string
+  description: string
+  status?: { tone: ToolTone; label: string }
+  side?: ReactNode
+  summary?: ReactNode
+  actions?: ReactNode
   children: ReactNode
-  className?: string
-  title?: string
-  eyebrow?: string
-  action?: ReactNode
 }): JSX.Element {
   return (
-    <section className={`panel ${className}`}>
-      {(title || eyebrow || action) && (
-        <header className="panel-head">
-          <div>
-            {eyebrow && <span className="eyebrow">{eyebrow}</span>}
-            {title && <h2>{title}</h2>}
-          </div>
-          {action}
-        </header>
+    <article className="tool">
+      <header className="tool-head">
+        <div className="tool-title">
+          <h1 className="dot-title">{title}</h1>
+          <p>{description}</p>
+        </div>
+        {status && (
+          <span className={`tool-status is-${status.tone}`}>
+            <span className="tool-status-dot" />
+            {status.label}
+          </span>
+        )}
+      </header>
+      <div className={`tool-body ${side ? 'has-side' : ''}`}>
+        <div className="tool-main">{children}</div>
+        {side && <div className="tool-side">{side}</div>}
+      </div>
+      {(summary || actions) && (
+        <footer className="tool-foot">
+          <div className="tool-summary">{summary}</div>
+          <div className="tool-actions">{actions}</div>
+        </footer>
       )}
-      {children}
+    </article>
+  )
+}
+
+export function Group({
+  label,
+  aside,
+  children
+}: {
+  label: string
+  aside?: ReactNode
+  children: ReactNode
+}): JSX.Element {
+  return (
+    <section className="group">
+      <header className="group-head">
+        <h2>{label}</h2>
+        {aside}
+      </header>
+      <div className="group-body">{children}</div>
     </section>
   )
 }
@@ -57,15 +95,22 @@ export function Segmented<T extends string | number>({
   value,
   options,
   onChange,
-  label
+  label,
+  columns
 }: {
   value: T
   options: SegmentedOption<T>[]
   onChange: (value: T) => void
   label: string
+  columns?: number
 }): JSX.Element {
   return (
-    <div className="segmented" role="group" aria-label={label}>
+    <div
+      className={`segmented ${columns ? 'is-grid' : ''}`}
+      style={columns ? ({ '--columns': columns } as CSSProperties) : undefined}
+      role="group"
+      aria-label={label}
+    >
       {options.map((option) => (
         <button
           key={String(option.value)}
@@ -109,6 +154,40 @@ export function ColorField({
   )
 }
 
+export function PillSlider({
+  value,
+  min,
+  max,
+  step = 1,
+  onChange,
+  label,
+  icon
+}: {
+  value: number
+  min: number
+  max: number
+  step?: number
+  onChange: (value: number) => void
+  label: string
+  icon?: IconName
+}): JSX.Element {
+  const fraction = (value - min) / (max - min)
+  return (
+    <span className="pill-slider" style={{ '--f': fraction } as CSSProperties}>
+      <span className="pill-slider-fill">{icon && <Icon name={icon} size={16} />}</span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        aria-label={label}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
+    </span>
+  )
+}
+
 export function RangeField({
   label,
   value,
@@ -127,20 +206,13 @@ export function RangeField({
   display: string
 }): JSX.Element {
   return (
-    <label className="range-field">
+    <div className="range-field">
       <span className="range-head">
         <span className="field-label">{label}</span>
         <span className="range-value">{display}</span>
       </span>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
-      />
-    </label>
+      <PillSlider label={label} value={value} min={min} max={max} step={step} onChange={onChange} />
+    </div>
   )
 }
 
@@ -148,15 +220,17 @@ export function ToggleRow({
   label,
   detail,
   checked,
-  onChange
+  onChange,
+  disabled = false
 }: {
   label: string
   detail?: string
   checked: boolean
   onChange: (checked: boolean) => void
+  disabled?: boolean
 }): JSX.Element {
   return (
-    <label className="toggle-row">
+    <label className={`toggle-row ${disabled ? 'is-disabled' : ''}`}>
       <span>
         <span className="toggle-label">{label}</span>
         {detail && <span className="toggle-detail">{detail}</span>}
@@ -164,6 +238,7 @@ export function ToggleRow({
       <span className={`switch ${checked ? 'is-on' : ''}`}>
         <input
           type="checkbox"
+          disabled={disabled}
           checked={checked}
           onChange={(event) => onChange(event.target.checked)}
         />
@@ -194,6 +269,7 @@ export function DropZone({
   const [dragging, setDragging] = useState(false)
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
+    if (event.target !== event.currentTarget) return
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault()
       input.current?.click()
@@ -204,6 +280,7 @@ export function DropZone({
     <div
       className={`drop-zone ${dragging ? 'is-dragging' : ''} ${file ? 'has-file' : ''}`}
       role="button"
+      aria-label={file ? `Replace ${file.name}` : title}
       tabIndex={0}
       onClick={() => input.current?.click()}
       onKeyDown={handleKeyDown}
@@ -231,7 +308,7 @@ export function DropZone({
         }}
       />
       <span className="drop-icon">
-        <Icon name={file ? 'check' : icon} size={22} />
+        <Icon name={file ? 'check' : icon} size={file ? 16 : 20} />
       </span>
       <div className="drop-copy">
         <strong>{file ? file.name : title}</strong>
@@ -247,7 +324,7 @@ export function DropZone({
             onClear()
           }}
         >
-          <Icon name="close" size={15} />
+          <Icon name="close" size={14} />
         </button>
       )}
     </div>
@@ -268,4 +345,3 @@ export function formatBytes(value: number): string {
   if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`
   return `${(value / (1024 * 1024)).toFixed(1)} MB`
 }
-

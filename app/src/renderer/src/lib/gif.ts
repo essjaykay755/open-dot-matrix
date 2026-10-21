@@ -109,7 +109,7 @@ function limitFrames(frames: PreviewFrame[]): PreviewFrame[] {
   return result
 }
 
-function encodeGif(frames: PreviewFrame[]): Uint8Array {
+export function encodeGif(frames: PreviewFrame[]): Uint8Array {
   const encoder = GIFEncoder()
   frames.forEach((frame, index) => {
     const palette = quantize(frame.data, 256)

@@ -1,15 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type JSX } from 'react'
 import type { BluetoothDeviceInfo } from '../../shared/types'
 import { ActivityLog, type LogItem } from './components/ActivityLog'
 import { ConnectionCard } from './components/ConnectionCard'
 import { DevicePicker } from './components/DevicePicker'
+import { DesktopTitleBar } from './components/DesktopTitleBar'
 import { GifPanel } from './components/GifPanel'
-import { Icon, type IconName } from './components/Icons'
+import { Icon } from './components/Icons'
 import { ImagePanel } from './components/ImagePanel'
 import { MatrixPreview } from './components/MatrixPreview'
 import { ModesPanel } from './components/ModesPanel'
 import { QuickControls } from './components/QuickControls'
 import { TextPanel } from './components/TextPanel'
+import { WeatherPanel } from './components/WeatherPanel'
+import { saveLastDevice } from './lib/deviceMemory'
 import { idlePreview, type PreviewContent } from './lib/preview'
 import {
   MatrixClient,
@@ -17,14 +20,16 @@ import {
   type ProgressEvent
 } from './lib/matrixClient'
 import type { LogLevel } from './lib/transport'
+import { useWeatherService } from './lib/useWeatherService'
 
-type Tab = 'image' | 'gif' | 'text' | 'modes'
+type Tab = 'image' | 'gif' | 'text' | 'weather' | 'modes'
 
-const TABS: { id: Tab; index: string; label: string; icon: IconName }[] = [
-  { id: 'image', index: '01', label: 'Image', icon: 'image' },
-  { id: 'gif', index: '02', label: 'GIF', icon: 'gif' },
-  { id: 'text', index: '03', label: 'Text', icon: 'text' },
-  { id: 'modes', index: '04', label: 'Modes', icon: 'sliders' }
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'image', label: 'Image' },
+  { id: 'gif', label: 'GIF' },
+  { id: 'text', label: 'Text' },
+  { id: 'weather', label: 'Weather' },
+  { id: 'modes', label: 'Modes' }
 ]
 
 const TIME_FORMAT = new Intl.DateTimeFormat('en-GB', {
@@ -45,6 +50,7 @@ export default function App(): JSX.Element {
     image: idlePreview(),
     gif: idlePreview(),
     text: idlePreview(),
+    weather: idlePreview(),
     modes: idlePreview()
   }))
   const [logs, setLogs] = useState<LogItem[]>([])
@@ -53,7 +59,28 @@ export default function App(): JSX.Element {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pickerDevices, setPickerDevices] = useState<BluetoothDeviceInfo[]>([])
   const [selectingId, setSelectingId] = useState<string | null>(null)
+  const [indicator, setIndicator] = useState<CSSProperties>({ opacity: 0 })
   const logId = useRef(0)
+  const studioScrollRef = useRef<HTMLDivElement>(null)
+  const tabbarRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    studioScrollRef.current?.scrollTo(0, 0)
+  }, [tab])
+
+  useLayoutEffect(() => {
+    const bar = tabbarRef.current
+    if (!bar) return
+    const measure = (): void => {
+      const active = bar.querySelector<HTMLElement>(`[data-tab="${tab}"]`)
+      if (!active) return
+      setIndicator({ width: active.offsetWidth, transform: `translateX(${active.offsetLeft}px)` })
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(bar)
+    return () => observer.disconnect()
+  }, [tab])
 
   const appendLog = useCallback((level: LogLevel, message: string) => {
     logId.current += 1
@@ -99,11 +126,16 @@ export default function App(): JSX.Element {
         setPreviews((current) => ({ ...current, image: content })),
       gif: (content: PreviewContent) => setPreviews((current) => ({ ...current, gif: content })),
       text: (content: PreviewContent) => setPreviews((current) => ({ ...current, text: content })),
+      weather: (content: PreviewContent) =>
+        setPreviews((current) => ({ ...current, weather: content })),
       modes: (content: PreviewContent) =>
         setPreviews((current) => ({ ...current, modes: content }))
     }),
     []
   )
+
+  const weather = useWeatherService(client, previewHandlers.weather)
+  const chosenDeviceRef = useRef<BluetoothDeviceInfo | null>(null)
 
   const run = useCallback(
     async (task: () => Promise<unknown>): Promise<void> => {
@@ -126,8 +158,11 @@ export default function App(): JSX.Element {
     setPickerDevices([])
     setSelectingId(null)
     setPickerOpen(true)
+    chosenDeviceRef.current = null
     try {
       await client.connectBle()
+      // Remembered so scheduled updates can reconnect to this panel without the picker.
+      if (chosenDeviceRef.current) saveLastDevice(chosenDeviceRef.current)
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : String(reason)
       if (!/cancel|chooser|not found/i.test(message)) setError(message)
@@ -145,9 +180,11 @@ export default function App(): JSX.Element {
 
   const chooseDevice = useCallback(async (deviceId: string) => {
     setSelectingId(deviceId)
+    const device = pickerDevices.find((entry) => entry.deviceId === deviceId)
+    chosenDeviceRef.current = device ?? { deviceId, deviceName: 'iDotMatrix' }
     const accepted = await window.desktop?.selectBluetoothDevice(deviceId)
     if (!accepted) setSelectingId(null)
-  }, [])
+  }, [pickerDevices])
 
   const startDemo = useCallback(() => {
     void run(() => client.useDemo())
@@ -158,7 +195,7 @@ export default function App(): JSX.Element {
   }, [client, run])
 
   const busy = progress !== null
-  const previewStatus = state.mode === 'ble' ? 'live' : state.mode === 'demo' ? 'demo' : 'idle'
+  const connected = state.mode === 'ble' || state.mode === 'demo'
   const progressPercent =
     progress && progress.total > 0
       ? Math.round((Math.min(progress.done, progress.total) / progress.total) * 100)
@@ -166,97 +203,20 @@ export default function App(): JSX.Element {
 
   return (
     <div className="app-shell">
-      <header className="topbar">
-        <div className="brand">
-          <span className="brand-mark" aria-hidden="true">
-            <i />
-            <i />
-            <i />
-            <i />
-            <i />
-            <i />
-            <i />
-            <i />
-            <i />
-          </span>
-          <div>
-            <strong>OPEN DOT MATRIX</strong>
-            <span>Desktop LED studio</span>
-          </div>
-        </div>
-
-        <div className="topbar-center">
-          <span className={`top-status ${state.mode === 'ble' ? 'is-live' : ''}`}>
-            <span className="status-dot" />
-            {state.mode === 'ble'
-              ? 'Panel online'
-              : state.mode === 'demo'
-                ? 'Simulation'
-                : state.mode === 'connecting'
-                  ? 'Scanning'
-                  : 'Offline'}
-          </span>
-          <span className="top-device">{state.deviceName}</span>
-        </div>
-
-        <div className="topbar-actions">
-          <button
-            type="button"
-            className="icon-button"
-            title="Sync panel clock"
-            aria-label="Sync panel clock"
-            onClick={() => void run(() => client.syncTime())}
-          >
-            <Icon name="clock" size={17} />
-          </button>
-          {state.mode === 'ble' ? (
-            <button type="button" className="btn btn-ghost" onClick={disconnect}>
-              <Icon name="close" size={15} />
-              Disconnect
-            </button>
-          ) : (
-            <button type="button" className="btn btn-primary" onClick={() => void connect()}>
-              <Icon name="bluetooth" size={15} />
-              Connect
-            </button>
-          )}
-        </div>
-      </header>
-
-      {error && (
-        <div className="error-banner" role="alert">
-          <span>
-            <Icon name="bolt" size={16} />
-            {error}
-          </span>
-          <button type="button" className="icon-button" onClick={() => setError(null)}>
-            <Icon name="close" size={15} />
-          </button>
-        </div>
-      )}
-
-      {progress && (
-        <div className={`operation-bar ${progress.total === 0 ? 'is-indeterminate' : ''}`}>
-          <span className="operation-label">{progress.label}</span>
-          <span className="operation-track">
-            <span style={{ width: `${progressPercent}%` }} />
-          </span>
-          <span className="operation-count">
-            {progress.total > 0 ? `${progress.done}/${progress.total}` : '…'}
-          </span>
-        </div>
-      )}
+      <DesktopTitleBar />
 
       <main className="workspace">
         <aside className="rail">
-          <MatrixPreview content={previews[tab]} status={previewStatus} />
           <ConnectionCard
             state={state}
+            busy={busy}
             onConnect={() => void connect()}
             onDemo={startDemo}
             onDisconnect={disconnect}
           />
+          <MatrixPreview content={previews[tab]} live={connected} />
           <QuickControls
+            disabled={!connected || busy}
             onBrightness={(value) => void run(() => client.setBrightness(value))}
             onPower={(on) => void run(() => client.setPower(on))}
             onFlip={(on) => void run(() => client.setFlipped(on))}
@@ -265,49 +225,72 @@ export default function App(): JSX.Element {
         </aside>
 
         <section className="studio">
-          <div className="tabbar" role="tablist" aria-label="Studio tools">
+          <nav className="tabbar" role="tablist" aria-label="Studio tools" ref={tabbarRef}>
+            <span className="tab-indicator" style={indicator} aria-hidden="true" />
             {TABS.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 role="tab"
+                id={`tab-${item.id}`}
+                data-tab={item.id}
+                aria-controls={`panel-${item.id}`}
                 aria-selected={tab === item.id}
-                className={`studio-tab ${tab === item.id ? 'is-active' : ''}`}
+                tabIndex={tab === item.id ? 0 : -1}
+                className={`tab ${tab === item.id ? 'is-active' : ''}`}
                 onClick={() => setTab(item.id)}
+                onKeyDown={(event) => {
+                  const index = TABS.findIndex((entry) => entry.id === item.id)
+                  const next = event.key === 'ArrowRight'
+                    ? (index + 1) % TABS.length
+                    : event.key === 'ArrowLeft'
+                      ? (index + TABS.length - 1) % TABS.length
+                      : event.key === 'Home'
+                        ? 0
+                        : event.key === 'End' ? TABS.length - 1 : null
+                  if (next === null) return
+                  event.preventDefault()
+                  setTab(TABS[next].id)
+                  document.getElementById(`tab-${TABS[next].id}`)?.focus()
+                }}
               >
-                <span className="tab-index">{item.index}</span>
-                <Icon name={item.icon} size={16} />
-                <span>{item.label}</span>
+                {item.label}
               </button>
             ))}
-            <span className="tabbar-note">64 × 64 · RGB</span>
-          </div>
+          </nav>
 
-          <div className="studio-scroll">
-            <div className="tab-pane" hidden={tab !== 'image'}>
+          <div className="studio-scroll" ref={studioScrollRef}>
+            <div className="tab-pane" id="panel-image" role="tabpanel" aria-labelledby="tab-image" hidden={tab !== 'image'}>
               <ImagePanel
                 busy={busy}
+                connected={connected}
                 onPreview={previewHandlers.image}
                 onSend={(rgb) => run(() => client.sendImage(rgb))}
               />
             </div>
-            <div className="tab-pane" hidden={tab !== 'gif'}>
+            <div className="tab-pane" id="panel-gif" role="tabpanel" aria-labelledby="tab-gif" hidden={tab !== 'gif'}>
               <GifPanel
                 busy={busy}
+                connected={connected}
                 onPreview={previewHandlers.gif}
                 onSend={(bytes) => run(() => client.sendGif(bytes))}
               />
             </div>
-            <div className="tab-pane" hidden={tab !== 'text'}>
+            <div className="tab-pane" id="panel-text" role="tabpanel" aria-labelledby="tab-text" hidden={tab !== 'text'}>
               <TextPanel
                 busy={busy}
+                connected={connected}
                 onPreview={previewHandlers.text}
                 onSend={(packet) => run(() => client.sendText(packet))}
               />
             </div>
-            <div className="tab-pane" hidden={tab !== 'modes'}>
+            <div className="tab-pane" id="panel-weather" role="tabpanel" aria-labelledby="tab-weather" hidden={tab !== 'weather'}>
+              <WeatherPanel service={weather} busy={busy} connected={connected} active={tab === 'weather'} />
+            </div>
+            <div className="tab-pane" id="panel-modes" role="tabpanel" aria-labelledby="tab-modes" hidden={tab !== 'modes'}>
               <ModesPanel
                 busy={busy}
+                connected={connected}
                 onPreview={previewHandlers.modes}
                 onColor={(color) => run(() => client.showColor(color))}
                 onClock={(options) => run(() => client.showClock(options))}
@@ -320,8 +303,39 @@ export default function App(): JSX.Element {
                 onTimeIndicator={(enabled) => run(() => client.setTimeIndicator(enabled))}
               />
             </div>
+          </div>
 
-            <ActivityLog entries={logs} onClear={() => setLogs([])} />
+          <ActivityLog entries={logs} onClear={() => setLogs([])} />
+
+          <div className="toasts">
+            {progress && (
+              <div
+                className={`toast is-progress ${progress.total === 0 ? 'is-indeterminate' : ''}`}
+                role="progressbar"
+                aria-label={progress.label}
+                aria-valuenow={progress.total > 0 ? progressPercent : undefined}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
+                <span className="spinner" />
+                <span className="toast-message">{progress.label}</span>
+                <span className="progress-track">
+                  <span style={{ width: `${progressPercent}%` }} />
+                </span>
+                <span className="progress-count">
+                  {progress.total > 0 ? `${progress.done}/${progress.total}` : '…'}
+                </span>
+              </div>
+            )}
+            {error && (
+              <div className="toast is-error" role="alert">
+                <Icon name="bolt" size={15} />
+                <span className="toast-message">{error}</span>
+                <button type="button" className="icon-button" aria-label="Dismiss error" onClick={() => setError(null)}>
+                  <Icon name="close" size={14} />
+                </button>
+              </div>
+            )}
           </div>
         </section>
       </main>

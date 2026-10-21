@@ -4,73 +4,71 @@ import { Icon } from './Icons'
 
 export function ConnectionCard({
   state,
+  busy,
   onConnect,
   onDemo,
   onDisconnect
 }: {
   state: MatrixState
+  busy: boolean
   onConnect: () => void
   onDemo: () => void
   onDisconnect: () => void
 }): JSX.Element {
-  const connected = state.mode === 'ble' || state.mode === 'demo'
-  const label =
+  const tag =
+    state.mode === 'ble' ? 'Connected' : state.mode === 'demo' ? 'Demo' : state.mode === 'connecting' ? 'Scanning' : 'Offline'
+  const status =
     state.mode === 'ble'
-      ? 'Bluetooth online'
+      ? 'Bluetooth LE · 64 × 64 RGB'
       : state.mode === 'demo'
-        ? 'Simulation online'
+        ? 'Simulated · nothing is transmitted'
         : state.mode === 'connecting'
-          ? 'Opening device picker'
-          : 'No panel connected'
+          ? 'Looking for nearby panels…'
+          : 'Connect an iDotMatrix panel'
+  const name = state.mode === 'demo' ? 'Demo panel' : state.mode === 'ble' ? state.deviceName : 'No panel'
 
   return (
-    <section className="connection-card panel">
-      <div className="connection-head">
-        <span className={`connection-glyph ${connected ? 'is-on' : ''}`}>
-          <Icon name="bluetooth" size={18} />
+    <section className={`card device-card is-${state.mode}`} aria-label="Connection">
+      <header className="card-head">
+        <h2>Device</h2>
+        <span className="state-tag">
+          <span className="state-dot" />
+          {tag}
         </span>
-        <div>
-          <span className="eyebrow">Connection</span>
-          <strong>{state.deviceName}</strong>
-        </div>
-        <span className={`connection-state ${connected ? 'is-on' : ''}`}>
-          {state.mode === 'ble' ? 'BLE' : state.mode === 'demo' ? 'DEMO' : 'OFF'}
-        </span>
-      </div>
-      <p className="connection-note">{label}</p>
+      </header>
 
-      <div className="connection-actions">
+      <div className="device-meta">
+        <strong title={name}>{name}</strong>
+        <span>{status}</span>
+      </div>
+
+      <div className="device-actions">
         {state.mode === 'ble' ? (
-          <button type="button" className="btn btn-secondary" onClick={onDisconnect}>
-            <Icon name="close" size={15} />
+          <button type="button" className="btn btn-secondary grow" onClick={onDisconnect} disabled={busy}>
             Disconnect
           </button>
         ) : (
           <button
             type="button"
-            className="btn btn-primary"
+            className="btn btn-primary grow"
             onClick={onConnect}
-            disabled={state.mode === 'connecting'}
+            disabled={state.mode === 'connecting' || busy}
           >
             <Icon name="bluetooth" size={15} />
-            Connect panel
+            {state.mode === 'connecting' ? 'Connecting…' : 'Connect panel'}
           </button>
         )}
-        <button
-          type="button"
-          className="btn btn-ghost"
-          onClick={onDemo}
-          disabled={state.mode === 'demo'}
-        >
-          <Icon name="spark" size={15} />
-          Demo
-        </button>
-      </div>
-
-      <div className="connection-specs">
-        <span>GATT fa02 / fa03</span>
-        <span>64 × 64 RGB</span>
-        <span>4096 B chunks</span>
+        {state.mode !== 'ble' && (
+          <button
+            type="button"
+            className={`btn btn-secondary ${state.mode === 'demo' ? 'is-pressed' : ''}`}
+            onClick={onDemo}
+            disabled={state.mode === 'demo' || state.mode === 'connecting' || busy}
+            title="Try every tool against a simulated panel"
+          >
+            Demo
+          </button>
+        )}
       </div>
     </section>
   )

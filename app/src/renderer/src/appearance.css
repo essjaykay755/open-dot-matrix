@@ -1,0 +1,125 @@
+/*
+ * Design tokens, inspired by Nothing's industrial design language: pure black,
+ * flat widgets, pill controls and inverted selections. The signature lime is the
+ * product's own color, taken from the LED glow, and is used sparingly as a signal.
+ */
+:root {
+  color-scheme: light;
+  --sans: 'Geist Variable', 'Segoe UI Variable Text', system-ui, sans-serif;
+  --mono: 'Geist Mono Variable', 'Cascadia Code', ui-monospace, monospace;
+  --dot: 'Doto Variable', 'Geist Mono Variable', monospace;
+
+  --bg: #f2f2f2;
+  --bg-tint: rgb(150 200 20 / 8%);
+  --grain-opacity: 0.045;
+  --card: #ffffff;
+  --card-solid: #ffffff;
+  --card-border: rgb(0 0 0 / 6%);
+  --raised: #f4f4f4;
+  --raised-hover: #ebebeb;
+  --well: #ececec;
+  --invert: #0a0a0a;
+  --on-invert: #ffffff;
+  --text: #0a0a0a;
+  --muted: #5a5a5a;
+  --dim: #9a9a9a;
+  --line: rgb(0 0 0 / 7%);
+  --line-strong: rgb(0 0 0 / 13%);
+  --dot-color: rgb(0 0 0 / 11%);
+  --accent: #c8f550;
+  --accent-contrast: #0a0c03;
+  --accent-ink: #4b6900;
+  --accent-soft: rgb(140 190 0 / 13%);
+  --accent-line: rgb(110 160 0 / 42%);
+  --accent-glow: rgb(150 200 20 / 45%);
+  --success: #3f8f00;
+  --warn: #b26b00;
+  --danger: #d71921;
+  --danger-soft: #fdeceb;
+  --radius: 26px;
+  --field-radius: 16px;
+  --switch-track: #d9d9d9;
+  --switch-thumb: #ffffff;
+  --overlay: rgb(10 10 10 / 35%);
+  --shadow-lg: 0 30px 80px -20px rgb(0 0 0 / 30%);
+  --glow-opacity: 0.4;
+  --scroll-thumb: rgb(0 0 0 / 16%);
+  --scroll-hover: rgb(0 0 0 / 30%);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #000000;
+  --bg-tint: rgb(200 245 80 / 4.5%);
+  --grain-opacity: 0.06;
+  --card: #0f0f10;
+  --card-solid: #0f0f10;
+  --card-border: rgb(255 255 255 / 7%);
+  --raised: #19191b;
+  --raised-hover: #222225;
+  --well: #080808;
+  --invert: #f5f5f5;
+  --on-invert: #000000;
+  --text: #f5f5f5;
+  --muted: #9a9a9a;
+  --dim: #5c5c5c;
+  --line: rgb(255 255 255 / 7%);
+  --line-strong: rgb(255 255 255 / 13%);
+  --dot-color: rgb(255 255 255 / 10%);
+  --accent-ink: #d2ff63;
+  --accent-soft: rgb(200 245 80 / 10%);
+  --accent-line: rgb(200 245 80 / 36%);
+  --accent-glow: rgb(200 245 80 / 34%);
+  --success: #c8f550;
+  --warn: #f5b942;
+  --danger: #ff4b4b;
+  --danger-soft: #2a0d0d;
+  --switch-track: #2a2a2d;
+  --switch-thumb: #8a8a8a;
+  --overlay: rgb(0 0 0 / 70%);
+  --shadow-lg: 0 40px 100px -20px rgb(0 0 0 / 95%);
+  --glow-opacity: 0.55;
+  --scroll-thumb: rgb(255 255 255 / 12%);
+  --scroll-hover: rgb(255 255 255 / 22%);
+}
+
+/* Windows and macOS: the title bar is drawn by the app. */
+.titlebar.is-integrated {
+  user-select: none;
+  -webkit-app-region: drag;
+}
+
+.titlebar.is-integrated button {
+  -webkit-app-region: no-drag;
+}
+
+/* Windows: keep clear of the native caption buttons drawn by the overlay. */
+:root[data-platform='win32'] .titlebar-inner {
+  width: env(titlebar-area-width, 100%);
+  margin-left: env(titlebar-area-x, 0px);
+}
+
+/* macOS: leave room for the inset traffic lights. */
+:root[data-platform='darwin'] .titlebar-inner {
+  padding-left: 84px;
+}
+
+@media (forced-colors: active) {
+  .card,
+  .tool-main,
+  .tool-side > .group,
+  .tool-foot,
+  .tabbar,
+  .drop-zone,
+  .device-modal,
+  .activity {
+    border: 1px solid CanvasText;
+  }
+  .tab.is-active,
+  .segmented button.is-active,
+  .mode-tile.is-active,
+  .key.is-on .key-cap,
+  .btn-primary {
+    border: 2px solid Highlight;
+  }
+}

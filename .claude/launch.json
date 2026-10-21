@@ -1,0 +1,33 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "renderer",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--prefix",
+        "app",
+        "vite",
+        "app/src/renderer",
+        "--port",
+        "5199",
+        "--strictPort"
+      ],
+      "port": 5199
+    },
+    {
+      "name": "renderer-weather",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--prefix",
+        "app",
+        "vite",
+        "app/src/renderer",
+        "--port",
+        "5200",
+        "--strictPort"
+      ],
+      "port": 5200
+    }
+  ]
+}

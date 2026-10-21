@@ -1,4 +1,4 @@
-import { useEffect, type JSX } from 'react'
+import { useEffect, useRef, type JSX } from 'react'
 import type { BluetoothDeviceInfo } from '../../../shared/types'
 import { Icon } from './Icons'
 import { Spinner } from './ui'
@@ -16,13 +16,32 @@ export function DevicePicker({
   onSelect: (deviceId: string) => void
   onCancel: () => void
 }): JSX.Element | null {
+  const dialogRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     if (!open) return
+    const previousFocus = document.activeElement
+    dialogRef.current?.querySelector<HTMLButtonElement>('button:not([disabled])')?.focus()
     function handleKey(event: globalThis.KeyboardEvent): void {
       if (event.key === 'Escape') onCancel()
+      if (event.key !== 'Tab') return
+      const controls = dialogRef.current?.querySelectorAll<HTMLButtonElement>('button:not([disabled])')
+      if (!controls?.length) return
+      const first = controls[0]
+      const last = controls[controls.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
     }
     window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
+    return () => {
+      window.removeEventListener('keydown', handleKey)
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus()
+    }
   }, [open, onCancel])
 
   if (!open) return null
@@ -34,21 +53,10 @@ export function DevicePicker({
         if (event.target === event.currentTarget) onCancel()
       }}
     >
-      <div className="device-modal" role="dialog" aria-modal="true" aria-labelledby="picker-title">
-        <div className="picker-visual">
-          <span className="picker-ring ring-one" />
-          <span className="picker-ring ring-two" />
-          <span className="picker-core">
-            <Icon name="bluetooth" size={24} />
-          </span>
-        </div>
+      <div ref={dialogRef} className="device-modal" role="dialog" aria-modal="true" aria-labelledby="picker-title">
         <div className="picker-copy">
-          <span className="eyebrow">Bluetooth discovery</span>
           <h2 id="picker-title">Choose your panel</h2>
-          <p>
-            Select the <strong>IDM-</strong> device. If it is missing, close the phone app or
-            disconnect the panel from it, then try again.
-          </p>
+          <p>Choose an IDM device. Disconnect it from the phone app if it doesn’t appear.</p>
         </div>
 
         <div className="device-list">
@@ -72,8 +80,8 @@ export function DevicePicker({
                     <Icon name={preferred ? 'matrix' : 'bluetooth'} size={17} />
                   </span>
                   <span className="device-name">
-                    <strong>{device.deviceName}</strong>
-                    <span>{preferred ? 'iDotMatrix panel' : 'Bluetooth device'}</span>
+                    <strong title={device.deviceName}>{device.deviceName}</strong>
+                    {preferred && <span>iDotMatrix panel</span>}
                   </span>
                   {selecting ? (
                     <Spinner />
@@ -90,7 +98,6 @@ export function DevicePicker({
         </div>
 
         <div className="modal-footer">
-          <span className="modal-hint">Web Bluetooth · local connection only</span>
           <button type="button" className="btn btn-ghost" onClick={onCancel}>
             Cancel
           </button>
