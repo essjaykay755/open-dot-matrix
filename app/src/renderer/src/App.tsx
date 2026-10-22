@@ -203,7 +203,7 @@ export default function App(): JSX.Element {
 
   return (
     <div className="app-shell">
-      <DesktopTitleBar />
+      <DesktopTitleBar onError={setError} />
 
       <main className="workspace">
         <aside className="rail">

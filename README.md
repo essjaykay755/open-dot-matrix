@@ -6,7 +6,7 @@ Open Dot Matrix is an open-source desktop studio for **iDotMatrix 64 × 64 RGB L
 
 *The Weather workspace, connected to an iDotMatrix panel.*
 
-**Current version:** [v0.1.1](https://github.com/essjaykay755/open-dot-matrix/releases/tag/v0.1.1) · [All releases](https://github.com/essjaykay755/open-dot-matrix/releases)
+**Current version:** [v0.1.2](https://github.com/essjaykay755/open-dot-matrix/releases/tag/v0.1.2) · [All releases](https://github.com/essjaykay755/open-dot-matrix/releases)
 
 Download the Windows installer (`.exe`) or Linux x64 AppImage from the release assets. On Linux, make the AppImage executable before running it. Release builds run a startup check against the packaged application before their installers are uploaded.
 

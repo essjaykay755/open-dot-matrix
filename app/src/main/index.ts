@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, nativeTheme, shell, systemPreferences } fr
 import { join } from 'node:path'
 import type { BluetoothDeviceInfo } from '../shared/types'
 import { CREATOR_PROFILES } from '../shared/creator'
+import { REPOSITORY_URL } from '../shared/repository'
 import { appIconPath } from './icon'
 import { getAppearance, getWindowColors, installApplicationMenu, platformWindowOptions, updateWindowAppearance } from './appearance'
 import { interceptWindowClose, isKeepingInTray, setupBackground, startedHidden } from './background'
@@ -159,6 +160,10 @@ app.whenReady().then(() => {
 app.on('second-instance', showWindow)
 
 ipcMain.handle('appearance:get', () => getAppearance())
+
+ipcMain.handle('app:open-repository', async () => {
+  await shell.openExternal(REPOSITORY_URL)
+})
 
 ipcMain.handle('app:open-creator-profile', async (_event, profile: unknown) => {
   if (profile !== 'github' && profile !== 'x') throw new Error('Unknown creator profile')

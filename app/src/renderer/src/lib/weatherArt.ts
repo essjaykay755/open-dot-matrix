@@ -600,6 +600,10 @@ function renderGauge(context: StyleContext, index: number): Uint8ClampedArray {
   const fill = Math.min(1, Math.max(0, (report.temperature - low) / Math.max(1, high - low)))
   const head = Math.round(fill * (ticks - 1))
   const pulse = 0.5 + 0.5 * Math.sin(TAU * t)
+  // Move a distinct highlight back and forth along the filled arc. A brightness
+  // wave alone is easy to miss on LEDs, especially at reduced panel brightness.
+  // Keep the actual temperature marker fixed and animate only the ticks below it.
+  const cursor = Math.round((0.5 - 0.5 * Math.cos(TAU * t)) * Math.max(0, head - 1))
 
   for (let tick = 0; tick < ticks; tick += 1) {
     const angle = start + (sweep * tick) / (ticks - 1)
@@ -607,15 +611,15 @@ function renderGauge(context: StyleContext, index: number): Uint8ClampedArray {
     const y = Math.round(center + Math.sin(angle) * radius)
     let tone: Rgb = [30, 44, 11]
     if (tick < head) {
-      // A brightness wave runs along the lit arc toward the current temperature.
-      const wave = 0.5 + 0.5 * Math.sin(TAU * (t * 2 - tick / 12))
-      tone = mix(LIME_MID, LIME, 0.3 + 0.7 * wave)
+      const distance = Math.abs(tick - cursor)
+      tone = distance === 0 ? LIME_HOT : distance <= 2 ? LIME : LIME_DIM
     } else if (tick === head) {
       tone = mix(LIME, [255, 255, 255], pulse * 0.6)
     }
     frame.set(x, y, tone)
     if (tick <= head) {
-      frame.set(Math.round(center + Math.cos(angle) * (radius - 1)), Math.round(center + Math.sin(angle) * (radius - 1)), scale(tone, 0.55))
+      const brightness = tick < head && Math.abs(tick - cursor) <= 2 ? 1 : 0.55
+      frame.set(Math.round(center + Math.cos(angle) * (radius - 1)), Math.round(center + Math.sin(angle) * (radius - 1)), scale(tone, brightness))
     }
     if (tick === head) {
       frame.blend(x + 1, y, LIME, 0.4 * pulse)

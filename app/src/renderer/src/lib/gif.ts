@@ -110,12 +110,20 @@ function limitFrames(frames: PreviewFrame[]): PreviewFrame[] {
 }
 
 export function encodeGif(frames: PreviewFrame[]): Uint8Array {
+  // Keep colour indices consistent throughout playback. In particular, subtle LED
+  // animations should change pixels rather than depend on per-frame palette updates.
+  const pixels = new Uint8Array(frames.reduce((size, frame) => size + frame.data.length, 0))
+  let offset = 0
+  for (const frame of frames) {
+    pixels.set(frame.data, offset)
+    offset += frame.data.length
+  }
+  const palette = quantize(pixels, 256)
   const encoder = GIFEncoder()
   frames.forEach((frame, index) => {
-    const palette = quantize(frame.data, 256)
     const indexed = applyPalette(frame.data, palette)
     encoder.writeFrame(indexed, 64, 64, {
-      palette,
+      palette: index === 0 ? palette : undefined,
       delay: Math.round(frame.delay),
       repeat: index === 0 ? 0 : undefined,
       dispose: 2

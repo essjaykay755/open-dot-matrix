@@ -13,6 +13,7 @@ export interface DesktopAppearance {
 }
 
 export interface DesktopBridge {
+  openRepository: () => Promise<void>
   openCreatorProfile: (profile: CreatorProfile) => Promise<void>
   getAppearance: () => Promise<DesktopAppearance>
   onAppearanceChanged: (callback: (appearance: DesktopAppearance) => void) => () => void

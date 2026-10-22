@@ -1,7 +1,7 @@
 {
   "name": "open-dot-matrix",
   "productName": "Open Dot Matrix",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Open-source desktop studio for iDotMatrix 64x64 LED panels",
   "main": "./out/main/index.js",
   "author": "Open Dot Matrix",

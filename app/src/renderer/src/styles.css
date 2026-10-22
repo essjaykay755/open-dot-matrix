@@ -210,22 +210,45 @@ fieldset {
   text-transform: uppercase;
 }
 
-.titlebar-about {
+.titlebar-version {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.titlebar-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.titlebar-action {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
   gap: 6px;
-  margin-left: auto;
   border: 1px solid transparent;
   border-radius: 99px;
   padding: 5px 10px;
   background: transparent;
   color: var(--muted);
   font-size: 11px;
+  text-decoration: none;
   transition: background 140ms var(--ease), color 140ms var(--ease);
 }
 
-.titlebar-about:hover {
+.titlebar-action,
+.titlebar-action * {
+  -webkit-app-region: no-drag;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.titlebar-action:hover {
   background: var(--raised);
   color: var(--text);
 }
@@ -358,7 +381,7 @@ fieldset {
 
 @media (prefers-reduced-motion: reduce) {
   .about-dialog[open] { animation: none; }
-  .about-profile, .titlebar-about { transition: none; }
+  .about-profile, .titlebar-action { transition: none; }
 }
 
 @media (forced-colors: active) {
