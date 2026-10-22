@@ -1,5 +1,6 @@
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import react from '@vitejs/plugin-react'
+import { version } from './package.json'
 
 const devCspPlugin = {
   name: 'opendotmatrix-dev-csp',
@@ -17,6 +18,7 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()]
   },
   renderer: {
+    define: { __APP_VERSION__: JSON.stringify(version) },
     plugins: [react(), devCspPlugin]
   }
 })

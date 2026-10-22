@@ -1,6 +1,8 @@
-import { app, BrowserWindow, ipcMain, nativeTheme, systemPreferences } from 'electron'
+import { app, BrowserWindow, ipcMain, nativeTheme, shell, systemPreferences } from 'electron'
 import { join } from 'node:path'
 import type { BluetoothDeviceInfo } from '../shared/types'
+import { CREATOR_PROFILES } from '../shared/creator'
+import { appIconPath } from './icon'
 import { getAppearance, getWindowColors, installApplicationMenu, platformWindowOptions, updateWindowAppearance } from './appearance'
 import { interceptWindowClose, isKeepingInTray, setupBackground, startedHidden } from './background'
 
@@ -91,6 +93,7 @@ function createWindow(): void {
     autoHideMenuBar: process.platform !== 'linux',
     backgroundColor: getWindowColors().background,
     title: 'Open Dot Matrix',
+    icon: appIconPath(),
     ...platformWindowOptions(),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -156,6 +159,11 @@ app.whenReady().then(() => {
 app.on('second-instance', showWindow)
 
 ipcMain.handle('appearance:get', () => getAppearance())
+
+ipcMain.handle('app:open-creator-profile', async (_event, profile: unknown) => {
+  if (profile !== 'github' && profile !== 'x') throw new Error('Unknown creator profile')
+  await shell.openExternal(CREATOR_PROFILES[profile].url)
+})
 
 ipcMain.handle('bluetooth:select', (_event, deviceId: unknown) => {
   if (typeof deviceId !== 'string') return false

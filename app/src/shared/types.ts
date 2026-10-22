@@ -1,3 +1,5 @@
+import type { CreatorProfile } from './creator'
+
 export interface BluetoothDeviceInfo {
   deviceId: string
   deviceName: string
@@ -11,6 +13,7 @@ export interface DesktopAppearance {
 }
 
 export interface DesktopBridge {
+  openCreatorProfile: (profile: CreatorProfile) => Promise<void>
   getAppearance: () => Promise<DesktopAppearance>
   onAppearanceChanged: (callback: (appearance: DesktopAppearance) => void) => () => void
   selectBluetoothDevice: (deviceId: string) => Promise<boolean>

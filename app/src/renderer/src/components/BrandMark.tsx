@@ -1,4 +1,5 @@
 import type { JSX } from 'react'
+import logo from '../assets/logo.svg'
 
 // 5×7 dot glyphs for the wordmark; '#' is a lit LED.
 const GLYPHS: Record<string, string[]> = {
@@ -57,11 +58,5 @@ export function DotWordmark({ text, highlight = [] }: { text: string; highlight?
 }
 
 export function BrandGlyph(): JSX.Element {
-  return (
-    <span className="brand-glyph" aria-hidden="true">
-      {Array.from({ length: 16 }, (_, index) => (
-        <i key={index} className={[0, 3, 5, 6, 9, 10, 12, 15].includes(index) ? 'is-on' : ''} />
-      ))}
-    </span>
-  )
+  return <img className="brand-glyph" src={logo} alt="" aria-hidden="true" />
 }

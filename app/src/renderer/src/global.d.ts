@@ -1,6 +1,8 @@
 import type { DesktopBridge } from '../../shared/types'
 
 declare global {
+  const __APP_VERSION__: string
+
   interface Window {
     desktop?: DesktopBridge
     /** Called by the main process (with a user gesture) to reconnect the remembered panel. */

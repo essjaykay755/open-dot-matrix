@@ -8,6 +8,7 @@ function subscribe(channel: string, callback: () => void): () => void {
 }
 
 const bridge: DesktopBridge = {
+  openCreatorProfile: (profile) => ipcRenderer.invoke('app:open-creator-profile', profile),
   getAppearance: () => ipcRenderer.invoke('appearance:get'),
   onAppearanceChanged: (callback) => {
     const listener = (_event: IpcRendererEvent, appearance: DesktopAppearance): void => callback(appearance)

@@ -1,6 +1,6 @@
 import { app, ipcMain, Menu, nativeImage, powerMonitor, Tray, type BrowserWindow } from 'electron'
-import { join } from 'node:path'
 import type { BackgroundOptions, BackgroundState } from '../shared/types'
+import { appIconPath } from './icon'
 
 // Keeps the app alive in the system tray so scheduled updates (weather) keep reaching the panel
 // after the window is closed, and optionally starts it hidden at login.
@@ -34,19 +34,13 @@ function backgroundState(): BackgroundState {
   }
 }
 
-function trayIconPath(): string {
-  return app.isPackaged
-    ? join(process.resourcesPath, 'icon.png')
-    : join(app.getAppPath(), 'build', 'icon.png')
-}
-
 export function setupBackground(getWindow: () => BrowserWindow | null, showWindow: () => void): void {
   const send = (channel: string): void => {
     const window = getWindow()
     if (window && !window.isDestroyed()) window.webContents.send(channel)
   }
 
-  const icon = nativeImage.createFromPath(trayIconPath())
+  const icon = nativeImage.createFromPath(appIconPath())
   tray = new Tray(icon.isEmpty() ? icon : icon.resize({ width: 16, height: 16 }))
   tray.setToolTip('Open Dot Matrix')
   tray.setContextMenu(

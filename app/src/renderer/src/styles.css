@@ -175,26 +175,11 @@ fieldset {
 }
 
 .brand-glyph {
-  display: grid;
-  width: 18px;
-  height: 18px;
-  flex: 0 0 18px;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1.5px;
-  padding: 2.5px;
-  border-radius: 50%;
-  background: #0b0b0d;
-  box-shadow: 0 0 0 1px rgb(255 255 255 / 10%);
-}
-
-.brand-glyph i {
-  border-radius: 50%;
-  background: rgb(255 255 255 / 12%);
-}
-
-.brand-glyph i.is-on {
-  background: var(--accent);
-  box-shadow: 0 0 3px var(--accent);
+  display: block;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  object-fit: contain;
 }
 
 .dot-wordmark {
@@ -223,6 +208,161 @@ fieldset {
   font-weight: 500;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+}
+
+.titlebar-about {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  border: 1px solid transparent;
+  border-radius: 99px;
+  padding: 5px 10px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  transition: background 140ms var(--ease), color 140ms var(--ease);
+}
+
+.titlebar-about:hover {
+  background: var(--raised);
+  color: var(--text);
+}
+
+/* A native dialog keeps keyboard focus inside About and makes the studio inert. */
+.about-dialog {
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  margin: auto;
+  overflow: auto;
+  border: 1px solid var(--line-strong);
+  border-radius: 30px;
+  padding: 0;
+  background: var(--card-solid);
+  color: var(--text);
+  box-shadow: var(--shadow-lg);
+  -webkit-app-region: no-drag;
+}
+
+.about-dialog[open] { animation: modal-in 240ms var(--ease); }
+
+.about-dialog::backdrop {
+  background: var(--overlay);
+  backdrop-filter: blur(8px);
+}
+
+.about-content { padding: 24px 30px 26px; }
+
+.about-topline,
+.about-identity {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.about-close { width: 30px; height: 30px; }
+.about-identity { margin-top: 28px; }
+.about-identity .brand-glyph {
+  width: 54px;
+  height: 54px;
+  flex-basis: 54px;
+}
+
+.about-version {
+  border: 1px solid var(--line-strong);
+  border-radius: 99px;
+  padding: 5px 10px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+}
+
+.about-wordmark {
+  margin-top: 22px;
+  line-height: 1;
+}
+
+.about-wordmark .dot-wordmark {
+  width: 100%;
+  height: auto;
+}
+
+.about-description {
+  max-width: 340px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.about-creator {
+  margin-top: 28px;
+  border-top: 1px dashed var(--line-strong);
+  padding-top: 24px;
+}
+
+.about-name {
+  margin-top: 8px;
+  font-size: 22px;
+  font-weight: 550;
+  letter-spacing: -0.04em;
+}
+
+.about-handle {
+  margin-top: 5px;
+  color: var(--accent-ink);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.about-name,
+.about-handle,
+.about-link-error { user-select: text; }
+
+.about-profiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.about-profile {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px;
+  background: var(--raised);
+  color: var(--text);
+  font-size: 12px;
+  text-decoration: none;
+  transition: border-color 140ms var(--ease), background 140ms var(--ease);
+}
+
+.about-profile > svg { flex: 0 0 auto; }
+.about-profile > svg:last-child { margin-left: auto; color: var(--muted); }
+.about-profile:hover { border-color: var(--accent-line); background: var(--accent-soft); }
+.about-footer { margin-top: 24px; color: var(--muted); font-size: 11px; }
+.about-link-error { margin-top: 12px; color: var(--danger); font-size: 12px; overflow-wrap: anywhere; }
+
+@media (max-width: 520px) {
+  .titlebar-tag { display: none; }
+  .titlebar-inner { gap: 8px; padding-right: 12px; padding-left: 12px; }
+  .titlebar-inner .dot-wordmark { flex: 0 1 auto; min-width: 0; max-width: 210px; }
+  .about-content { padding-right: 22px; padding-left: 22px; }
+  .about-profile { gap: 7px; padding: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .about-dialog[open] { animation: none; }
+  .about-profile, .titlebar-about { transition: none; }
+}
+
+@media (forced-colors: active) {
+  .about-dialog, .about-profile { border: 1px solid CanvasText; }
 }
 
 /* ═════════════ Widgets ═════════════ */
