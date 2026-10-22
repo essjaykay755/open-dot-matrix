@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type JSX, type MouseEvent } from 'react'
+import { version } from '../../../../package.json'
 import { CREATOR_HANDLE, CREATOR_NAME, CREATOR_PROFILES, type CreatorProfile } from '../../../shared/creator'
 import { BrandGlyph, DotWordmark } from './BrandMark'
 import { Icon } from './Icons'
@@ -55,7 +56,7 @@ export function AboutDialog({ open, onClose }: { open: boolean; onClose: () => v
 
         <div className="about-identity">
           <BrandGlyph />
-          <span className="about-version">Version {__APP_VERSION__}</span>
+          <span className="about-version">Version {version}</span>
         </div>
         <h2 id="about-title" className="about-wordmark">
           <DotWordmark text="Open Dot Matrix" highlight={['DOT']} />

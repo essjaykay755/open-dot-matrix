@@ -1,4 +1,4 @@
-name: Build Linux AppImage
+name: Build Windows and Linux installers
 
 on:
   workflow_dispatch:
@@ -14,8 +14,19 @@ permissions:
   contents: write
 
 jobs:
-  build-appimage:
-    runs-on: ubuntu-22.04
+  build-installer:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: win
+            executable: release/win-unpacked/Open Dot Matrix.exe
+          - os: ubuntu-22.04
+            target: linux
+            executable: release/linux-unpacked/open-dot-matrix
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.target }} x64
     steps:
       - name: Check out release source
         uses: actions/checkout@v7
@@ -34,20 +45,34 @@ jobs:
         working-directory: app
         run: npm ci
 
-      - name: Build AppImage
+      - name: Run unit tests
         working-directory: app
-        run: npm run dist:linux
+        run: npm test
 
-      - name: Attach AppImage to the GitHub release
+      - name: Build installer
+        working-directory: app
+        run: npm run dist:${{ matrix.target }} -- --x64 --publish never
+
+      - name: Check packaged startup
+        working-directory: app
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            xvfb-run -a node scripts/smoke-packaged.cjs "${{ matrix.executable }}"
+          else
+            node scripts/smoke-packaged.cjs "${{ matrix.executable }}"
+          fi
+
+      - name: Attach installer to the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
         shell: bash
         run: |
           shopt -s nullglob
-          assets=(app/release/*.AppImage)
+          assets=(app/release/*.AppImage app/release/*.exe)
           if ((${#assets[@]} != 1)); then
-            echo "Expected one AppImage, found ${#assets[@]}" >&2
+            echo "Expected one installer, found ${#assets[@]}" >&2
             exit 1
           fi
           gh release upload "$RELEASE_TAG" "${assets[0]}" --repo "$GITHUB_REPOSITORY" --clobber

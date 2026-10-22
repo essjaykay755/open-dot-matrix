@@ -6,7 +6,9 @@ Open Dot Matrix is an open-source desktop studio for **iDotMatrix 64 × 64 RGB L
 
 *The Weather workspace, connected to an iDotMatrix panel.*
 
-**Current version:** [v0.1.0](https://github.com/essjaykay755/open-dot-matrix/releases/tag/v0.1.0) · [All releases](https://github.com/essjaykay755/open-dot-matrix/releases)
+**Current version:** [v0.1.1](https://github.com/essjaykay755/open-dot-matrix/releases/tag/v0.1.1) · [All releases](https://github.com/essjaykay755/open-dot-matrix/releases)
+
+Download the Windows installer (`.exe`) or Linux x64 AppImage from the release assets. On Linux, make the AppImage executable before running it. Release builds run a startup check against the packaged application before their installers are uploaded.
 
 ## Supported displays
 
@@ -52,6 +54,8 @@ npm run dev
 
 Choose **Demo** to try the tools without hardware. To use a panel, choose **Connect panel** and select it in the Bluetooth device picker. Prepare content in the **Image**, **GIF**, **Text**, **Weather**, or **Modes** tab, review the preview, and send it to the panel.
 
+Development mode watches renderer, main-process, and preload changes. Restart `npm run dev` after changing its configuration or dependencies. `npm start` builds and opens the production app locally.
+
 ## Weather scheduling and tray behavior
 
 In the Weather tab, enable **Update the panel** and choose an interval to refresh the forecast and send it automatically. Enable **Reconnect automatically** to let the app find the last selected panel again if the Bluetooth connection drops.
@@ -82,6 +86,7 @@ Run these commands from `app/`:
 | `npm test` | Run the Vitest unit tests. |
 | `npm run build` | Type-check and create the production app bundle. |
 | `npm run package` | Build an unpacked desktop app. |
+| `npm run smoke:packaged -- "path/to/executable"` | Launch an unpacked app with an isolated profile and check its tools, About dialog, assets, and desktop bridge. Linux CI runs this under `xvfb-run`. |
 | `npm run dist:win` | Build a Windows NSIS installer. |
 | `npm run dist:mac` | Build a macOS DMG. |
 | `npm run dist:linux` | Build a Linux AppImage. |
