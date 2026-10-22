@@ -1,64 +1,67 @@
 # Open Dot Matrix
 
-Desktop studio for iDotMatrix 64×64 LED displays. The Electron, Vite, and React app lives in `app/`.
+A desktop studio for iDotMatrix 64 × 64 RGB LED panels. Prepare images, animations, and text; control built-in panel modes; and send content over Bluetooth Low Energy.
 
-## Run
+## Features
 
-```powershell
+| Tool | What it does |
+| --- | --- |
+| **Image** | Fit, fill, or stretch a raster image to 64 × 64; set the background, rotate it 180°, or use pixelated scaling. Includes a calibration pattern. |
+| **GIF** | Resize and re-encode animated GIFs for the panel, with framing, background, rotation, and pixelated scaling controls. Supports files up to 50 MB and sends up to 64 frames. |
+| **Text** | Render a message locally and send it with one of nine motion modes, adjustable speed, solid or rainbow color, and a configurable background. |
+| **Weather** | Turn current weather into an animated panel scene. Choose a location, °C or °F, and a Scene, Bold, Glyph, Phosphor, Dots, or Gauge style; optionally show the city and daily high/low. Weather and location search use [Open-Meteo](https://open-meteo.com/) and require no API key. |
+| **Modes** | Set a solid color, one of eight clock faces, a countdown, stopwatch, scoreboard, screen timeout, or time indicator. These are built-in panel modes. |
+| **Display controls** | Adjust brightness, power the panel on or off, flip it, or sync its clock. |
+
+The Weather tool can send an update on demand or on a 5, 10, 15, 30, or 60 minute schedule. It can reconnect to the last selected panel and keep running in the system tray. Launch at sign-in is available in installed Windows and macOS builds.
+
+### Weather style preview
+
+![Animated preview of the six weather styles](docs/weather-previews/0-all-styles.gif)
+
+Individual previews are in [`docs/weather-previews`](docs/weather-previews).
+
+## Quick start
+
+Install Node.js with npm, then run from the repository root:
+
+```sh
 cd app
-npm install
+npm ci
 npm run dev
 ```
 
-## Build
+This starts the Electron desktop app in development mode. Select **Demo** to try the tools with a simulated panel, or choose **Connect panel** and select an iDotMatrix device from the Bluetooth picker.
 
-```powershell
-cd app
-npm run build
-```
+## Use the studio
 
-## Platform appearance
+1. Choose a tool from the **Image**, **GIF**, **Text**, **Weather**, or **Modes** tabs.
+2. Prepare the content and check its preview in the left panel.
+3. Connect a display, then send the content or apply the selected built-in mode.
 
-The React UI and Bluetooth client are shared across Windows, macOS, and Linux, and the interface looks the same on all three. Its design takes inspiration from Nothing's industrial style, with flat black widgets, pill controls, mono labels and a few dot-matrix titles. It ships its own fonts: Geist for text, Geist Mono for labels, and Doto for dot-matrix figures, all under the SIL Open Font License. Only the window chrome differs by platform:
+Weather needs an internet connection to search for a location and fetch current conditions. Enable automatic updates in the Weather tab to refresh and send on a schedule. With **Keep running in the tray** enabled, closing the window hides it and scheduled updates continue; use the tray menu to reopen the app, send an update now, or quit.
 
-| Platform | Window integration |
+## Build and package
+
+Run these commands from `app/`:
+
+| Command | Result |
 | --- | --- |
-| Windows | Integrated draggable title bar with native caption buttons |
-| macOS | Native traffic-light controls, system application menu and Command shortcuts |
-| Linux | Window-manager title bar and native menu bar |
+| `npm run typecheck` | Type-check the Electron and renderer TypeScript projects. |
+| `npm test` | Run the Vitest unit tests. |
+| `npm run build` | Type-check and create the production app bundle. |
+| `npm run dist:win` | Build a Windows NSIS installer. |
+| `npm run dist:mac` | Build a macOS DMG. |
+| `npm run dist:linux` | Build a Linux AppImage. |
 
-The interface follows the system light/dark setting, which updates while the app is open. It uses its own lime accent, taken from the LED glow. Window controls, menus, and file pickers are native.
+The package targets are defined in `app/electron-builder.yml`; distribution commands write to `app/release/`.
 
-Zoom the interface with Ctrl+= and Ctrl+- (Cmd on macOS), and reset it with Ctrl+0. On macOS and Linux these are also in the View menu.
+## Project structure
 
-## Weather
+- `app/src/main/` — Electron window, platform appearance, Bluetooth device selection, and tray behavior.
+- `app/src/preload/` — limited bridge between the Electron main process and the UI.
+- `app/src/renderer/` — React interface, panel tools, image/GIF/text rendering, weather scenes, and Bluetooth client.
+- `app/src/shared/` — types shared by the main and renderer processes.
+- `docs/weather-previews/` — exported animations for the Weather styles.
 
-The Weather tab shows live conditions for a city as an animated 64×64 pixel scene (sun, moon and stars, clouds, rain, snow, fog, or lightning) with the temperature, the day's high and low, and the city name. Weather data comes from [Open-Meteo](https://open-meteo.com/), which is free and needs no API key.
-
-- Search for a city and pick it from the list. Choose °C or °F and which details to show.
-- Pick a style. Animated previews of each style are in [docs/weather-previews](docs/weather-previews).
-
-  | Style | Look |
-  | --- | --- |
-  | Scene | Full-colour animated sky |
-  | Bold | Huge temperature with a shine sweeping across it |
-  | Glyph | White line-art icons with lime accents |
-  | Phosphor | Lime CRT glow with scanlines |
-  | Dots | Lime dot matrix, one LED per dot |
-  | Gauge | Lime dial that fills from today's low to high |
-- Turn on **Update the panel automatically** and choose an interval from 5 minutes to 1 hour. Each update fetches fresh weather and sends the animation as a GIF.
-- **Reconnect automatically** remembers the last panel you picked. If the Bluetooth link drops, or the app was restarted, the next update scans for that panel and reconnects without the picker.
-- **Keep running in the tray** keeps updates going after the window is closed. Use the tray icon to reopen the window, push an update now, or quit.
-- **Start when I sign in** (installed Windows and macOS builds) launches the app hidden in the tray so updates resume after a restart.
-
-## Package for distribution
-
-Run the matching command from `app/` on the target operating system:
-
-| Build host | Command | Output |
-| --- | --- | --- |
-| Windows | `npm run dist:win` | NSIS installer |
-| macOS | `npm run dist:mac` | DMG |
-| Linux | `npm run dist:linux` | AppImage |
-
-Packages are written to `app/release/`. Signing and notarization require the appropriate developer credentials. The macOS bundle includes a Bluetooth permission description. Each platform's installer, Bluetooth permissions, and display connection need to be checked on that platform; a Windows build does not validate macOS or Linux behavior.
+The desktop shell is Electron; the interface is React and TypeScript, built with Vite through `electron-vite`. The renderer converts image and text content locally and communicates with the panel over Bluetooth Low Energy. Weather data is fetched from Open-Meteo.
